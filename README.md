@@ -362,7 +362,6 @@ MIT License - voir le fichier [LICENSE](LICENSE) pour plus de détails.
 **Besoin d'aide ?**
 - 📖 [Documentation complète](.github/copilot-instructions.md)
 - 🔐 [Guide des améliorations d'authentification](IMPROVEMENTS_TOKENS.md)
-- 🛡️ [Guide de validation Zod](ZOD_VALIDATION_GUIDE.md)
 - 🏗️ [Guide de structure du projet](TEMPLATE_CONTENT.md)
 
 ## 📋 Changelog

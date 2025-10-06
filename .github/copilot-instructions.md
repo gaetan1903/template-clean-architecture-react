@@ -12,6 +12,7 @@
 - **Routing**: React Router DOM v6
 - **HTTP Client**: Axios
 - **Error Handling**: @sweet-monads/either (Either monad)
+- **Validation**: Zod pour la validation des schemas API
 - **Styling**: SASS/SCSS
 
 ### Structure du projet
@@ -67,8 +68,9 @@ data/
 **Règles**:
 - ✅ Implémente les interfaces définies dans domain
 - ✅ Gère les appels HTTP via Axios avec intercepteurs automatiques
-- ✅ Transforme les données API en entités
+- ✅ Transforme les données API en entités avec validation Zod
 - ✅ Utilise AuthService pour la gestion des tokens (plus de LocalStorageService direct)
+- ✅ Valide toutes les données d'API avec Zod avant conversion en entités
 
 ### 3. **Presentation Layer** (Couche Présentation)
 **Rôle**: Interface utilisateur et interaction
@@ -200,6 +202,106 @@ export class [EntityName]Model {
 - Mapping entre format API et format Entity
 - Gestion des valeurs nullables avec `??`
 - Transformation des noms de propriétés (snake_case ↔ camelCase)
+
+---
+
+### Étape 2.5: Validation Zod dans les DTOs (Recommandé)
+
+**Objectif**: Sécuriser et valider toutes les données d'API avec Zod
+
+#### **Template DTO avec Zod**
+
+```typescript
+import { z } from 'zod';
+import { [EntityName]Entity } from "../../domain/entities/[entityName]";
+import { AppError } from '../../../../core/types/AppError';
+
+// Schéma API principal
+const [EntityName]ApiSchema = z.object({
+    id: z.string().uuid(),
+    first_name: z.string().min(1).max(100),
+    last_name: z.string().min(1).max(100),
+    email: z.string().email(),
+    phone_number: z.string().nullable().optional(),
+    status: z.enum(['ACTIVE', 'INACTIVE', 'PENDING']),
+    created_at: z.string().datetime(),
+    updated_at: z.string().datetime()
+});
+
+// Schéma pour création (sans id/dates)
+const Create[EntityName]ApiSchema = [EntityName]ApiSchema
+    .omit({ id: true, created_at: true, updated_at: true })
+    .extend({ password: z.string().min(6) });
+
+// Types générés
+export type [EntityName]ApiType = z.infer<typeof [EntityName]ApiSchema>;
+export type Create[EntityName]ApiType = z.infer<typeof Create[EntityName]ApiSchema>;
+
+export class [EntityName]Model {
+    static fromJson(json: unknown): [EntityName]Entity {
+        try {
+            const data = [EntityName]ApiSchema.parse(json);
+            return new [EntityName]Entity(
+                data.id, data.first_name, data.last_name, data.email,
+                data.phone_number ?? null, data.status,
+                new Date(data.created_at), new Date(data.updated_at)
+            );
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                const message = error.issues.map((err: z.ZodIssue) => 
+                    `${err.path.join('.')}: ${err.message}`).join(', ');
+                throw new AppError(`Données invalides: ${message}`, "VALIDATION_ERROR", 
+                    { zodErrors: error.issues, receivedData: json });
+            }
+            throw error;
+        }
+    }
+
+    static validateCreateData(data: unknown): Create[EntityName]ApiType {
+        return Create[EntityName]ApiSchema.parse(data);
+    }
+
+    static validateUpdateData(data: unknown): Partial<Create[EntityName]ApiType> {
+        return Create[EntityName]ApiSchema.partial().parse(data);
+    }
+}
+```
+
+#### **Utilisation dans DataSource**
+
+```typescript
+// Validation automatique
+const entities = response.data.map(item => [EntityName]Model.fromJson(item));
+
+// Validation avant envoi
+async create[EntityName](token: string, data: CreateUserDataParams): Promise<boolean> {
+    const validatedData = [EntityName]Model.validateCreateData(data);
+    const response = await this.axiosService.post('/api/[entities]', validatedData, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    return response.status === 201;
+}
+```
+
+#### **Gestion des erreurs**
+
+```typescript
+try {
+    const entity = [EntityName]Model.fromJson(apiData);
+    return right(entity);
+} catch (error) {
+    if (error instanceof AppError && error.code === "VALIDATION_ERROR") {
+        return left(error);
+    }
+    return left(new AppError("Erreur inconnue", "000", error));
+}
+```
+
+#### **Avantages**
+- ✅ Validation automatique des données d'API
+- ✅ Types TypeScript générés automatiquement  
+- ✅ Messages d'erreur détaillés pour debugging
+- ✅ Protection contre les données malformées
 
 ---
 
@@ -1369,6 +1471,7 @@ export default JobOfferList;
 
 - [ ] **Entité**: Créer la classe Entity dans `domain/entities/`
 - [ ] **DTO**: Créer le Model avec `fromJson` et `toJson` dans `data/DTO/`
+- [ ] **Validation Zod**: Ajouter les schémas Zod dans le DTO pour validation API
 - [ ] **Repository Interface**: Définir les méthodes dans `domain/repositories/i[Feature]Repository.ts`
 - [ ] **DataSource Interface + Implémentation**: Créer/Modifier dans `data/datasources/`
 - [ ] **Repository Implémentation**: Créer/Modifier dans `data/repositories/`
@@ -1498,8 +1601,13 @@ console.log("Component: Current state:", { loading, error, data });
    - Cause: Slice non enregistré dans le store
    - Solution: Ajouter le reducer dans `configureStore()`
 
+5. **"Données [entity] invalides" (Erreurs Zod)**
+   - Cause: Données d'API qui ne respectent pas le schéma Zod
+   - Solution: Vérifier le schéma Zod et/ou corriger les données API
+   - Debug: Utiliser `error.details.zodErrors` pour voir les détails
+
 ---
 
-**Version**: 1.1  
-**Dernière mise à jour**: Octobre 2025 - Amélioration de l'authentification avec AuthService, TokenService et useAuth hook  
+**Version**: 2.0  
+**Dernière mise à jour**: Octobre 2025 - Ajout validation Zod, amélioration authentification avec AuthService, TokenService et useAuth hook  
 **Mainteneur**: Équipe Tambatra
