@@ -12,13 +12,6 @@ import {
     GetUserByIdParams, 
     DeleteUserParams 
 } from "../../domain/types/UsersDomainTypes";
-import { 
-    GetUsersFiltersParams as DataGetUsersFiltersParams,
-    CreateUserDataParams as DataCreateUserDataParams,
-    UpdateUserDataParams as DataUpdateUserDataParams,
-    GetUserByIdParams as DataGetUserByIdParams,
-    DeleteUserParams as DataDeleteUserParams
-} from "../types/UsersDataTypes";
 
 export class UsersRepository implements IUsersRepository {
     private dataSource: IUsersDataSource;
@@ -36,16 +29,8 @@ export class UsersRepository implements IUsersRepository {
                 return left(tokenResult.value);
             }
 
-            // Mapping des filtres domain vers data layer
-            const dataFilters: DataGetUsersFiltersParams = {
-                page: filters.page,
-                search: filters.search,
-                status: filters.status,
-                role: filters.role
-            };
-
-            // Appel au DataSource
-            const users = await this.dataSource.getUsers(tokenResult.value, dataFilters);
+            // Appel direct au DataSource (mapping identique pour l'instant)
+            const users = await this.dataSource.getUsers(tokenResult.value, filters);
 
             // Succès: retourne Right
             return right(users);
@@ -65,8 +50,8 @@ export class UsersRepository implements IUsersRepository {
                 return left(tokenResult.value);
             }
 
-            const dataParams: DataGetUserByIdParams = { id: params.id };
-            const user = await this.dataSource.getUserById(tokenResult.value, dataParams);
+            // Appel direct au DataSource (mapping identique)
+            const user = await this.dataSource.getUserById(tokenResult.value, params);
             return right(user);
         } catch (error) {
             if (error instanceof AppError) {
@@ -83,18 +68,8 @@ export class UsersRepository implements IUsersRepository {
                 return left(tokenResult.value);
             }
 
-            // Mapping des données domain vers data layer
-            const dataCreate: DataCreateUserDataParams = {
-                firstName: data.firstName,
-                lastName: data.lastName,
-                email: data.email,
-                password: data.password,
-                role: data.role,
-                phoneNumber: data.phoneNumber,
-                status: data.status
-            };
-
-            const result = await this.dataSource.createUser(tokenResult.value, dataCreate);
+            // Appel direct au DataSource (mapping identique)
+            const result = await this.dataSource.createUser(tokenResult.value, data);
             return right(result);
         } catch (error) {
             if (error instanceof AppError) {
@@ -111,18 +86,8 @@ export class UsersRepository implements IUsersRepository {
                 return left(tokenResult.value);
             }
 
-            // Mapping des données domain vers data layer
-            const dataUpdate: DataUpdateUserDataParams = {
-                firstName: data.firstName,
-                lastName: data.lastName,
-                email: data.email,
-                password: data.password,
-                role: data.role,
-                phoneNumber: data.phoneNumber,
-                status: data.status
-            };
-
-            const result = await this.dataSource.updateUser(tokenResult.value, id, dataUpdate);
+            // Appel direct au DataSource (mapping identique)
+            const result = await this.dataSource.updateUser(tokenResult.value, id, data);
             return right(result);
         } catch (error) {
             if (error instanceof AppError) {
@@ -139,8 +104,8 @@ export class UsersRepository implements IUsersRepository {
                 return left(tokenResult.value);
             }
 
-            const dataParams: DataDeleteUserParams = { id: params.id };
-            const result = await this.dataSource.deleteUser(tokenResult.value, dataParams);
+            // Appel direct au DataSource (mapping identique)
+            const result = await this.dataSource.deleteUser(tokenResult.value, params);
             return right(result);
         } catch (error) {
             if (error instanceof AppError) {

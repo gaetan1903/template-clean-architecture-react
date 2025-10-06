@@ -9,7 +9,7 @@ import {
     UpdateUserDataParams, 
     GetUserByIdParams, 
     DeleteUserParams 
-} from "../types/UsersDataTypes";
+} from "../../domain/types/UsersDomainTypes";
 
 export interface IUsersDataSource {
     getUsers(token: string, filters: GetUsersFiltersParams): Promise<PaginatedArray<UserEntity>>;
