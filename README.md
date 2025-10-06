@@ -12,7 +12,8 @@ Un template complet basé sur les principes de **Clean Architecture** pour crée
 - 🌐 **Axios** pour les appels HTTP avec intercepteurs automatiques
 - 🔐 **Système d'authentification avancé** avec JWT et refresh automatique
 - ✅ **Either Monad** (@sweet-monads/either) pour la gestion d'erreurs
-- 💅 **SASS/SCSS** pour le styling
+- �️ **Validation Zod** pour la sécurité des données d'API
+- �💅 **SASS/SCSS** pour le styling
 - 🏛️ **Clean Architecture** avec séparation stricte des couches
 - 🚀 **Performance optimisée** avec hooks React memoizés
 - 🛡️ **Guards de routing** pour la protection des routes
@@ -258,14 +259,28 @@ const handleLogin = async () => {
 </PrivateRoute>
 ```
 
-#### Redux State Pattern
+#### Validation des données avec Zod
 
 ```typescript
-interface FeatureState {
-    loading: boolean;
-    error: string | null;
-    success: string | null;
-    items: EntityType[] | null;
+// Validation automatique dans les DTOs
+const user = UserModel.fromJson(apiResponse); // Validation Zod automatique
+
+// Validation avant création
+const validatedData = UserModel.validateCreateData({
+    first_name: "Jean",
+    last_name: "Dupont",
+    email: "jean@example.com",
+    role: "USER",
+    password: "motdepasse123"
+});
+
+// Gestion des erreurs de validation
+try {
+    const user = UserModel.fromJson(invalidData);
+} catch (error) {
+    if (error instanceof AppError && error.code === "VALIDATION_ERROR") {
+        console.log("Erreurs détaillées:", error.details.zodErrors);
+    }
 }
 ```
 
@@ -296,6 +311,7 @@ npm run lint
 | @mui/material | ^6.1.6 | UI components |
 | axios | ^1.7.9 | HTTP client |
 | @sweet-monads/either | ^3.3.1 | Either monad |
+| zod | ^3.x.x | Schema validation |
 | react-router-dom | ^6.22.2 | Routing |
 
 ## ⚡ Améliorations de performance
@@ -346,6 +362,7 @@ MIT License - voir le fichier [LICENSE](LICENSE) pour plus de détails.
 **Besoin d'aide ?**
 - 📖 [Documentation complète](.github/copilot-instructions.md)
 - 🔐 [Guide des améliorations d'authentification](IMPROVEMENTS_TOKENS.md)
+- 🛡️ [Guide de validation Zod](ZOD_VALIDATION_GUIDE.md)
 - 🏗️ [Guide de structure du projet](TEMPLATE_CONTENT.md)
 
 ## 📋 Changelog

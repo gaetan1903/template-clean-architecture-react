@@ -66,11 +66,6 @@ template-clean-architecture-react/
                └── redux/
                    ├── usersProvider.ts        # AsyncThunk providers
                    └── usersSlice.ts           # Redux slice
-       │
-       └── auth/                       # Feature d'authentification
-           └── presentation/
-               └── pages/
-                   └── LoginPageExample.tsx   # Exemple page de login
 │
 ├── .env.example                        # Variables d'environnement exemple
 ├── .gitignore                          # Fichiers à ignorer par Git
@@ -144,7 +139,7 @@ template-clean-architecture-react/
 - ✅ **AxiosInterceptor** : Retry automatique sur 401
 - ✅ **useAuth Hook** : État réactif d'authentification
 - ✅ **AuthTypes** : Types TypeScript stricts
-- ✅ **LoginPageExample** : Exemple de page de connexion
+- ✅ **Composants** : Pages d'exemple avec hooks et Material-UI
 
 ### Documentation
 - ✅ **README.md** : Documentation complète avec quickstart

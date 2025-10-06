@@ -41,7 +41,7 @@ export class UsersDataSource implements IUsersDataSource {
                 throw new AppError('Empty response', "001", 'users data is empty');
             }
 
-            // Mapping des données API vers Entités
+            // Mapping des données API vers Entités avec validation Zod automatique
             return new PaginatedArray(
                 response.data.data.map((item: any) => UserModel.fromJson(item)),
                 response.data.meta.totalPages,
@@ -49,6 +49,11 @@ export class UsersDataSource implements IUsersDataSource {
                 response.data.meta.totalItems
             );
         } catch (error) {
+            // Gestion spécifique des erreurs de validation Zod
+            if (error instanceof AppError && error.code === "VALIDATION_ERROR") {
+                throw error; // Re-throw les erreurs de validation
+            }
+            
             let _error = error as any;
             if (_error instanceof Object && _error.name === 'AxiosError') {
                 throw new AppError(
@@ -73,8 +78,14 @@ export class UsersDataSource implements IUsersDataSource {
                 throw new AppError('Empty response', "001", 'user data is empty');
             }
 
+            // Validation automatique avec Zod dans UserModel.fromJson
             return UserModel.fromJson(response.data);
         } catch (error) {
+            // Gestion spécifique des erreurs de validation Zod
+            if (error instanceof AppError && error.code === "VALIDATION_ERROR") {
+                throw error; // Re-throw les erreurs de validation
+            }
+            
             let _error = error as any;
             if (_error instanceof Object && _error.name === 'AxiosError') {
                 throw new AppError(
@@ -89,17 +100,25 @@ export class UsersDataSource implements IUsersDataSource {
 
     async createUser(token: string, data: CreateUserDataParams): Promise<boolean> {
         try {
-            const response = await this.axiosService.post('/api/users', data, {
+            // Validation des données avec Zod avant envoi à l'API
+            const validatedData = UserModel.validateCreateData(data);
+            
+            const response = await this.axiosService.post('/api/users', validatedData, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             });
             return response && response.status === 201;
         } catch (error) {
+            // Gestion spécifique des erreurs de validation Zod
+            if (error instanceof AppError && error.code === "VALIDATION_ERROR") {
+                throw error; // Re-throw les erreurs de validation
+            }
+            
             let _error = error as any;
             if (_error instanceof Object && _error.name === 'AxiosError') {
                 throw new AppError(
-                    _error.response?.data?.message || 'Erreur lors de la création',
+                    _error.response?.data?.message || 'Erreur lors de la création de l\'utilisateur',
                     "001",
                     _error.response?.data
                 );
@@ -110,13 +129,21 @@ export class UsersDataSource implements IUsersDataSource {
 
     async updateUser(token: string, id: string, data: UpdateUserDataParams): Promise<boolean> {
         try {
-            const response = await this.axiosService.put(`/api/users/${id}`, data, {
+            // Validation des données partielles avec Zod avant envoi à l'API
+            const validatedData = UserModel.validateUpdateData(data);
+            
+            const response = await this.axiosService.put(`/api/users/${id}`, validatedData, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             });
             return response && response.status === 200;
         } catch (error) {
+            // Gestion spécifique des erreurs de validation Zod
+            if (error instanceof AppError && error.code === "VALIDATION_ERROR") {
+                throw error; // Re-throw les erreurs de validation
+            }
+            
             let _error = error as any;
             if (_error instanceof Object && _error.name === 'AxiosError') {
                 throw new AppError(
