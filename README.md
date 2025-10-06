@@ -226,16 +226,10 @@ export const getUserProvider = createAsyncThunk(
 );
 ```
 
-#### Gestion des tokens (NOUVEAU)
+#### Gestion des tokens
 
 ```typescript
-// AVANT (dépréciée)
-const token = this.localStorageService.getAccessToken();
-if (!token) {
-    return left(new AppError("Session expirée", "401", "expired"));
-}
-
-// MAINTENANT (recommandé)
+// Récupération automatique avec validation et refresh
 const tokenResult = await this.authService.getValidToken();
 if (tokenResult.isLeft()) {
     return left(tokenResult.value);
@@ -246,7 +240,7 @@ const token = tokenResult.value; // Token automatiquement validé/rafraîchi
 #### Authentification dans les composants
 
 ```typescript
-// Hook useAuth optimisé (Redux-based)
+// Hook useAuth optimisé avec Redux
 const { isAuthenticated, user, login, logout, loading, error, clearError } = useAuth();
 
 // Connexion avec gestion automatique des erreurs
@@ -354,14 +348,14 @@ MIT License - voir le fichier [LICENSE](LICENSE) pour plus de détails.
 - 🔐 [Guide des améliorations d'authentification](IMPROVEMENTS_TOKENS.md)
 - 🏗️ [Guide de structure du projet](TEMPLATE_CONTENT.md)
 
-## 📋 Changelog récent
+## 📋 Changelog
 
-### v2.0 - Système d'authentification avancé
+### Version 2.0 - Système d'authentification avancé
 - ✅ **TokenService** : Validation JWT côté client
-- ✅ **AuthService** : Refresh automatique des tokens
+- ✅ **AuthService** : Refresh automatique des tokens  
 - ✅ **AxiosInterceptor** : Retry automatique sur 401
 - ✅ **Redux Auth** : État centralisé de l'authentification
-- ✅ **useAuth optimisé** : Performance améliorée (sans intervalles)
+- ✅ **useAuth optimisé** : Performance améliorée sans intervalles
 - ✅ **Architecture respectée** : Logique métier dans les services
 
 Voir [IMPROVEMENTS_TOKENS.md](IMPROVEMENTS_TOKENS.md) pour les détails techniques.
