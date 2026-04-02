@@ -1,60 +1,50 @@
-import { useSelector, useDispatch } from 'react-redux';
 import { useCallback, useMemo } from 'react';
-import { RootState, AppDispatch } from '../store';
-import { loginProvider, logoutProvider, checkAuthProvider, clearError } from '../redux/authSlice';
+import { useAuthStore } from '../store/authStore';
 import { LoginCredentials } from '../types/AuthTypes';
-import { Either } from '@sweet-monads/either';
+import { Either, left, right } from '@sweet-monads/either';
 import { AppError } from '../types/AppError';
 
 /**
- * Hook useAuth optimisé qui utilise Redux au lieu d'état local
- * Respecte l'architecture Clean et évite les problèmes de performance
+ * Hook useAuth qui utilise Zustand pour la gestion de l'authentification.
+ * Fournit un accès simplifié au state et aux actions d'authentification.
  */
 export const useAuth = () => {
-    const dispatch = useDispatch<AppDispatch>();
-    const authState = useSelector((state: RootState) => state.auth);
+    const authState = useAuthStore();
 
-    // Actions memoized pour éviter les re-renders
+    // Actions wrappées avec Either pour compatibilité avec l'architecture
     const login = useCallback(async (email: string, password: string): Promise<Either<AppError, boolean>> => {
         try {
             const credentials: LoginCredentials = { email, password };
-            const result = await dispatch(loginProvider(credentials));
-            
-            if (loginProvider.fulfilled.match(result)) {
-                return { isLeft: () => false, isRight: () => true, value: true } as Either<AppError, boolean>;
+            await authState.login(credentials);
+
+            // Vérifier le state après l'action
+            const { isAuthenticated, error } = useAuthStore.getState();
+            if (isAuthenticated) {
+                return right(true);
             } else {
-                const error = new AppError(result.payload as string || 'Erreur de connexion', '401', 'login_failed');
-                return { isLeft: () => true, isRight: () => false, value: error } as Either<AppError, boolean>;
+                return left(new AppError(error || 'Erreur de connexion', '401', 'login_failed'));
             }
         } catch (error) {
-            const appError = new AppError('Erreur de connexion', '500', error);
-            return { isLeft: () => true, isRight: () => false, value: appError } as Either<AppError, boolean>;
+            return left(new AppError('Erreur de connexion', '500', error));
         }
-    }, [dispatch]);
+    }, [authState]);
 
     const logout = useCallback(async (): Promise<Either<AppError, boolean>> => {
         try {
-            const result = await dispatch(logoutProvider());
-            
-            if (logoutProvider.fulfilled.match(result)) {
-                return { isLeft: () => false, isRight: () => true, value: true } as Either<AppError, boolean>;
-            } else {
-                const error = new AppError(result.payload as string || 'Erreur de déconnexion', '500', 'logout_failed');
-                return { isLeft: () => true, isRight: () => false, value: error } as Either<AppError, boolean>;
-            }
+            await authState.logout();
+            return right(true);
         } catch (error) {
-            const appError = new AppError('Erreur de déconnexion', '500', error);
-            return { isLeft: () => true, isRight: () => false, value: appError } as Either<AppError, boolean>;
+            return left(new AppError('Erreur de déconnexion', '500', error));
         }
-    }, [dispatch]);
+    }, [authState]);
 
-    const checkAuth = useCallback(async (): Promise<void> => {
-        dispatch(checkAuthProvider());
-    }, [dispatch]);
+    const checkAuth = useCallback((): void => {
+        authState.checkAuth();
+    }, [authState]);
 
-    const clearAuthError = useCallback(() => {
-        dispatch(clearError());
-    }, [dispatch]);
+    const clearError = useCallback(() => {
+        authState.clearError();
+    }, [authState]);
 
     // Valeurs memoized pour éviter les re-renders inutiles
     const memoizedValues = useMemo(() => ({
@@ -62,17 +52,15 @@ export const useAuth = () => {
         isLoading: authState.isLoading,
         user: authState.user,
         error: authState.error,
-        tokenTimeRemaining: authState.tokenTimeRemaining,
-        shouldRefreshSoon: authState.tokenTimeRemaining > 0 && authState.tokenTimeRemaining <= 300 // 5 minutes
-    }), [authState]);
+    }), [authState.isAuthenticated, authState.isLoading, authState.user, authState.error]);
 
     return {
         ...memoizedValues,
         login,
         logout,
         checkAuth,
-        refreshUser: checkAuth, // Alias pour compatibilité
-        clearError: clearAuthError
+        refreshUser: checkAuth,
+        clearError
     };
 };
 

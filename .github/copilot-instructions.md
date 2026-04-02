@@ -1,1613 +1,703 @@
 # Instructions Copilot - Tambatra UI
 
-## 🎯 Vue d'ensemble du projet
+> **REGLES ABSOLUES :**
+> 1. **JAMAIS** de token en parametre de DataSource/Repository -- l'AxiosInterceptor gere automatiquement le Bearer token
+> 2. **TOUJOURS** utiliser `Either<AppError, T>` pour les retours d'erreur (sauf dans les DataSources qui throw)
+> 3. **TOUJOURS** valider les donnees API avec Zod dans les DTOs
+> 4. **JAMAIS** de court-circuit dans les dependances : `Component -> Store -> UseCase -> Repository -> DataSource -> API`
+> 5. **TOUJOURS** utiliser Zustand pour le state management
+> 6. **JAMAIS** acceder directement a `localStorage` -- utiliser `TokenService` ou `AuthService`
+> 7. **JAMAIS** d'emojis dans les messages utilisateur, les logs, ni les commentaires de code
 
-**Tambatra UI** est une application React + TypeScript utilisant Vite comme bundler. Le projet suit une architecture **Clean Architecture** avec une séparation stricte des responsabilités.
+---
 
-### Technologies principales
-- **Framework**: React 18 avec TypeScript
-- **Build Tool**: Vite
-- **State Management**: Redux Toolkit (@reduxjs/toolkit)
-- **UI Library**: Material-UI (MUI) v6
-- **Routing**: React Router DOM v6
-- **HTTP Client**: Axios
-- **Error Handling**: @sweet-monads/either (Either monad)
-- **Validation**: Zod pour la validation des schemas API
-- **Styling**: SASS/SCSS
+## Vue d'ensemble
+
+**Tambatra UI** -- React 18 + TypeScript, Vite, Clean Architecture.
+
+### Stack technique
+| Categorie | Technologie |
+|-----------|-------------|
+| Framework | React 18 + TypeScript |
+| Build | Vite |
+| State | **Zustand** avec middleware `devtools` |
+| UI | Material-UI (MUI) v6 |
+| Routing | React Router DOM v6 |
+| HTTP | Axios (singleton + interceptors auto-token) |
+| Erreurs | `@sweet-monads/either` (Either monad) |
+| Validation | Zod |
+| Styling | SASS/SCSS |
 
 ### Structure du projet
 ```
 src/
-├── core/                    # Configuration globale et services partagés
-│   ├── services/           # Services globaux (authService, tokenService, axiosService)
-│   ├── types/              # Types TypeScript partagés (AuthTypes, AppError)
-│   ├── hooks/              # Hooks React réutilisables (useAuth)
-│   ├── guards/             # Guards de routing (PrivateRoute)
-│   ├── contexts/           # Contexts React
-│   └── components/         # Composants réutilisables
-│
-└── features/               # Features organisées par domaine métier
-    ├── dashboard/
-    ├── home/
-    ├── users/
-    └── auth/               # Feature d'authentification
++-- core/                    # Configuration globale et services partages
+|   +-- services/           # authService, tokenService, axiosService, axiosInterceptor
+|   +-- store/              # Stores Zustand globaux (authStore)
+|   +-- types/              # Types partages (AuthTypes, AppError, PaginatedArray)
+|   +-- hooks/              # Hooks reutilisables (useAuth)
+|   +-- utils/              # Utilitaires partages (validators)
+|   +-- components/         # PrivateRoute, ErrorBoundary, NotFoundPage
+|
++-- features/               # Features organisees par domaine metier
+    +-- auth/               # Authentification (LoginPage)
+    +-- [feature-name]/     # Chaque feature = 3 couches (data/domain/presentation)
 ```
 
 ---
 
-## 🏗️ Architecture Clean Architecture
+## Architecture Clean Architecture -- 3 couches par feature
 
-Le projet implémente la **Clean Architecture** avec 3 couches distinctes pour chaque feature :
-
-### 1. **Domain Layer** (Couche Domaine)
-**Rôle**: Logique métier pure, indépendante de tout framework
-
+### 1. Domain Layer (logique metier pure)
 ```
 domain/
-├── entities/           # Entités métier (modèles de données)
-├── repositories/       # Interfaces de repositories (contrats)
-└── usecases/          # Cas d'utilisation (logique métier)
++-- entities/          # Entites metier (interfaces + fonctions utilitaires)
++-- repositories/      # Interfaces (contrats) -- prefixe I
++-- types/             # Types specifiques au domaine
++-- usecases/          # Logique metier + validation
 ```
+**Regles** : Aucune dependance externe (pas d'axios, react, zustand). Logique metier pure + Either monad. Entites = interfaces (pas de classes, compatibles Zustand).
 
-**Règles**:
-- ❌ Pas de dépendances externes (axios, react, etc.)
-- ✅ Uniquement de la logique métier pure
-- ✅ Définit les interfaces/contrats
-- ✅ Utilise Either monad pour la gestion d'erreurs
-
-### 2. **Data Layer** (Couche Données)
-**Rôle**: Implémentation de l'accès aux données
-
+### 2. Data Layer (acces aux donnees)
 ```
 data/
-├── datasources/        # Communication avec l'API (appels HTTP)
-├── DTO/               # Data Transfer Objects (mapping API ↔ Entity)
-└── repositories/      # Implémentation des repositories
++-- datasources/       # Appels HTTP (pas de token en parametre !)
++-- DTO/               # Mapping API <-> Entity + validation Zod
++-- repositories/      # Implementation des contrats domain, try/catch -> Either
 ```
+**Regles** : Axios sans token manuel (interceptor auto). Zod dans chaque DTO. Repository = try/catch -> `right()`/`left()`.
 
-**Règles**:
-- ✅ Implémente les interfaces définies dans domain
-- ✅ Gère les appels HTTP via Axios avec intercepteurs automatiques
-- ✅ Transforme les données API en entités avec validation Zod
-- ✅ Utilise AuthService pour la gestion des tokens (plus de LocalStorageService direct)
-- ✅ Valide toutes les données d'API avec Zod avant conversion en entités
-
-### 3. **Presentation Layer** (Couche Présentation)
-**Rôle**: Interface utilisateur et interaction
-
+### 3. Presentation Layer (UI)
 ```
 presentation/
-├── components/         # Composants React spécifiques à la feature
-├── pages/             # Pages/Vues principales
-├── redux/             # Redux Toolkit (slices, providers)
-└── utils/             # Utilitaires de présentation
++-- components/        # Composants React specifiques
++-- pages/             # Pages principales
++-- store/             # Zustand store de la feature
++-- utils/             # Utilitaires de presentation
 ```
-
-**Règles**:
-- ✅ Utilise React et MUI
-- ✅ Communique via Redux Toolkit
-- ✅ Appelle les UseCases
-- ❌ Pas de logique métier complexe
+**Regles** : Zustand store unique par feature. Appelle les UseCases via le store. Pas de logique metier dans cette couche.
 
 ---
 
-## 📂 Structure des features
-
-Chaque feature (dashboard, home, portfolio) suit la même structure :
+## Structure complete d'une feature
 
 ```
 features/[feature-name]/
-│
-├── data/
-│   ├── datasources/
-│   │   └── [feature]DataSource.ts          # Interface + Implémentation des appels API
-│   ├── DTO/
-│   │   ├── [entity]Model.ts                # Mapping API ↔ Entity
-│   │   └── ...
-│   └── repositories/
-│       └── [feature]Repositories.ts         # Implémentation du repository
-│
-├── domain/
-│   ├── entities/
-│   │   ├── [entity].ts                      # Entités métier
-│   │   └── ...
-│   ├── repositories/
-│   │   └── i[feature]Repositories.ts        # Interface du repository
-│   └── usecases/
-│       ├── I[Feature]UseCase.ts             # Interface du UseCase
-│       └── [Feature]UseCase.ts              # Implémentation du UseCase
-│
-└── presentation/
-    ├── components/
-    │   └── [ComponentName]/
-    │       ├── [ComponentName].tsx
-    │       └── [ComponentName].scss (optionnel)
-    ├── pages/
-    │   └── [PageName]/
-    │       ├── [PageName].tsx
-    │       └── [PageName].scss (optionnel)
-    └── redux/
-        ├── [feature]Slice.ts                # Redux slice (state + reducers)
-        ├── [feature]Provider.ts             # AsyncThunk providers
-        └── .gitkeep
++-- data/
+|   +-- datasources/[Feature]DataSource.ts       # Interface + Implementation HTTP
+|   +-- DTO/[Entity]Model.ts                     # Zod schema + fromJson/toJson
+|   +-- repositories/[Feature]Repository.ts      # Implementation -> Either
++-- domain/
+|   +-- entities/[Entity].ts                     # Interface entite + fonctions utilitaires
+|   +-- repositories/I[Feature]Repository.ts     # Interface contrat
+|   +-- types/[Feature]DomainTypes.ts            # Types params (filters, create, update)
+|   +-- usecases/
+|       +-- I[Feature]UseCase.ts                 # Interface UseCase
+|       +-- [Feature]UseCase.ts                  # Implementation + validation metier
++-- presentation/
+    +-- components/[ComponentName]/[ComponentName].tsx
+    +-- pages/[PageName]/[PageName].tsx
+    +-- store/[feature]Store.ts                  # Zustand store (1 seul fichier)
 ```
 
 ---
 
-## ➕ Guide d'ajout de fonctionnalités
+## Patterns par couche -- Exemples de reference
 
-### Étape 1: Créer l'Entité (Domain Layer)
+> Les exemples ci-dessous sont alignes sur le code reel du projet (feature `users`).
+> Adapter les noms d'entites et champs pour chaque nouvelle feature.
 
-**Fichier**: `src/features/[feature]/domain/entities/[entityName].ts`
+### Entite (Domain) -- Interface obligatoire
+
+**Fichier** : `domain/entities/[Entity].ts`
 
 ```typescript
-// Exemple: userCandidat.ts
-export class UserCandidatEntity {
-    constructor(
-        public id: string,
-        public firstName: string,
-        public lastName: string,
-        public email: string,
-        public phoneNumber: string | null,
-        public status: string,
-        // ... autres propriétés
-    ) {}
+export interface UserEntity {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;       // Nullable avec | null
+    role: string;
+    createdAt: Date;
+    updatedAt: Date;
 }
+
+// Fonctions utilitaires (pas de methodes sur l'interface)
+export const getFullName = (user: UserEntity): string => {
+    return `${user.firstName} ${user.lastName}`;
+};
 ```
 
-**Points clés**:
-- Classes avec constructeur explicite
-- Types TypeScript stricts
-- Pas de logique, juste des données
-- Propriétés publiques pour faciliter l'accès
+> **Interfaces obligatoires** -- Les classes perdent leurs getters/methodes apres serialisation Zustand. Utiliser des interfaces + fonctions utilitaires.
 
----
+### DTO avec validation Zod (Data)
 
-### Étape 2: Créer le DTO (Data Layer)
-
-**Fichier**: `src/features/[feature]/data/DTO/[entityName]Model.ts`
-
-```typescript
-import { [EntityName]Entity } from "../../domain/entities/[entityName]";
-
-export class [EntityName]Model {
-    static fromJson(json: any): [EntityName]Entity {
-        return new [EntityName]Entity(
-            json.id,
-            json.first_name,           // Mapping snake_case → camelCase
-            json.last_name,
-            json.email,
-            json.phone_number ?? null, // Gestion des valeurs nullables
-            json.status,
-            // ... mapping des autres propriétés
-        );
-    }
-
-    static toJson(entity: [EntityName]Entity): any {
-        return {
-            id: entity.id,
-            first_name: entity.firstName,  // Mapping camelCase → snake_case
-            last_name: entity.lastName,
-            email: entity.email,
-            phone_number: entity.phoneNumber,
-            status: entity.status,
-            // ... mapping inverse
-        };
-    }
-}
-```
-
-**Points clés**:
-- Méthodes statiques `fromJson` et `toJson`
-- Mapping entre format API et format Entity
-- Gestion des valeurs nullables avec `??`
-- Transformation des noms de propriétés (snake_case ↔ camelCase)
-
----
-
-### Étape 2.5: Validation Zod dans les DTOs (Recommandé)
-
-**Objectif**: Sécuriser et valider toutes les données d'API avec Zod
-
-#### **Template DTO avec Zod**
+**Fichier** : `data/DTO/[Entity]Model.ts`
 
 ```typescript
 import { z } from 'zod';
-import { [EntityName]Entity } from "../../domain/entities/[entityName]";
+import { UserEntity } from '../../domain/entities/UserEntity';
 import { AppError } from '../../../../core/types/AppError';
 
-// Schéma API principal
-const [EntityName]ApiSchema = z.object({
-    id: z.string().uuid(),
-    first_name: z.string().min(1).max(100),
-    last_name: z.string().min(1).max(100),
-    email: z.string().email(),
-    phone_number: z.string().nullable().optional(),
-    status: z.enum(['ACTIVE', 'INACTIVE', 'PENDING']),
-    created_at: z.string().datetime(),
-    updated_at: z.string().datetime()
+// Schema Zod -- messages d'erreur personnalises
+const UserApiSchema = z.object({
+    id: z.string().uuid("ID doit etre un UUID valide"),
+    first_name: z.string().min(1, "Le prenom est requis"),
+    last_name: z.string().min(1, "Le nom est requis"),
+    email: z.string().email("Format d'email invalide"),
+    phone: z.string().nullable().optional(),
+    role: z.enum(['ADMIN', 'USER', 'MODERATOR']),
+    created_at: z.string().datetime("Date de creation invalide"),
+    updated_at: z.string().datetime("Date de mise a jour invalide"),
 });
 
-// Schéma pour création (sans id/dates)
-const Create[EntityName]ApiSchema = [EntityName]ApiSchema
+// Schema creation -- deriver via omit + extend, ne pas dupliquer les champs
+const CreateUserApiSchema = UserApiSchema
     .omit({ id: true, created_at: true, updated_at: true })
-    .extend({ password: z.string().min(6) });
+    .extend({ password: z.string().min(6, "Mot de passe minimum 6 caracteres") });
 
-// Types générés
-export type [EntityName]ApiType = z.infer<typeof [EntityName]ApiSchema>;
-export type Create[EntityName]ApiType = z.infer<typeof Create[EntityName]ApiSchema>;
+export type UserApiType = z.infer<typeof UserApiSchema>;
+export type CreateUserApiType = z.infer<typeof CreateUserApiSchema>;
 
-export class [EntityName]Model {
-    static fromJson(json: unknown): [EntityName]Entity {
+export class UserModel {
+    // Retourner un objet litteral -- compatible Zustand
+    static fromJson(json: unknown): UserEntity {
         try {
-            const data = [EntityName]ApiSchema.parse(json);
-            return new [EntityName]Entity(
-                data.id, data.first_name, data.last_name, data.email,
-                data.phone_number ?? null, data.status,
-                new Date(data.created_at), new Date(data.updated_at)
-            );
+            const data = UserApiSchema.parse(json);
+            return {
+                id: data.id,
+                firstName: data.first_name,       // snake_case API -> camelCase Entity
+                lastName: data.last_name,
+                email: data.email,
+                phone: data.phone ?? null,
+                role: data.role,
+                createdAt: new Date(data.created_at),
+                updatedAt: new Date(data.updated_at),
+            };
         } catch (error) {
             if (error instanceof z.ZodError) {
-                const message = error.issues.map((err: z.ZodIssue) => 
-                    `${err.path.join('.')}: ${err.message}`).join(', ');
-                throw new AppError(`Données invalides: ${message}`, "VALIDATION_ERROR", 
+                const message = error.issues
+                    .map((err: z.ZodIssue) => `${err.path.join('.')}: ${err.message}`)
+                    .join(', ');
+                throw new AppError(`Donnees invalides: ${message}`, "VALIDATION_ERROR",
                     { zodErrors: error.issues, receivedData: json });
             }
             throw error;
         }
     }
 
-    static validateCreateData(data: unknown): Create[EntityName]ApiType {
-        return Create[EntityName]ApiSchema.parse(data);
+    // toJson valide le format de sortie avec Zod
+    static toJson(entity: UserEntity): UserApiType {
+        return UserApiSchema.parse({
+            id: entity.id,
+            first_name: entity.firstName,
+            last_name: entity.lastName,
+            email: entity.email,
+            phone: entity.phone,
+            role: entity.role,
+            created_at: entity.createdAt.toISOString(),
+            updated_at: entity.updatedAt.toISOString(),
+        });
     }
 
-    static validateUpdateData(data: unknown): Partial<Create[EntityName]ApiType> {
-        return Create[EntityName]ApiSchema.partial().parse(data);
+    static validateCreateData(data: unknown): CreateUserApiType {
+        // Meme pattern try/catch -> AppError pour chaque methode de validation
+        return CreateUserApiSchema.parse(data);
+    }
+
+    static validateUpdateData(data: unknown): Partial<CreateUserApiType> {
+        return CreateUserApiSchema.partial().parse(data);
     }
 }
 ```
 
-#### **Utilisation dans DataSource**
+### Domain Types
+
+**Fichier** : `domain/types/[Feature]DomainTypes.ts`
 
 ```typescript
-// Validation automatique
-const entities = response.data.map(item => [EntityName]Model.fromJson(item));
+export interface GetUsersFiltersParams {
+    page?: number;
+    search?: string;
+    status?: string;
+    role?: string;
+}
 
-// Validation avant envoi
-async create[EntityName](token: string, data: CreateUserDataParams): Promise<boolean> {
-    const validatedData = [EntityName]Model.validateCreateData(data);
-    const response = await this.axiosService.post('/api/[entities]', validatedData, {
-        headers: { Authorization: `Bearer ${token}` }
-    });
-    return response.status === 201;
+export interface CreateUserDataParams {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    role?: string;
+    phoneNumber?: string;
+    status?: string;
+}
+
+export interface UpdateUserDataParams {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    password?: string;
+    role?: string;
+    phoneNumber?: string;
+    status?: string;
+}
+
+export interface GetUserByIdParams { id: string; }
+export interface DeleteUserParams { id: string; }
+```
+
+### Interface Repository (Domain)
+
+**Fichier** : `domain/repositories/I[Feature]Repository.ts`
+
+```typescript
+export interface IUsersRepository {
+    getUsers(filters: GetUsersFiltersParams): Promise<Either<AppError, PaginatedArray<UserEntity>>>;
+    getUserById(params: GetUserByIdParams): Promise<Either<AppError, UserEntity>>;
+    createUser(data: CreateUserDataParams): Promise<Either<AppError, boolean>>;
+    updateUser(id: string, data: UpdateUserDataParams): Promise<Either<AppError, boolean>>;
+    deleteUser(params: DeleteUserParams): Promise<Either<AppError, boolean>>;
 }
 ```
 
-#### **Gestion des erreurs**
+### DataSource (Data) -- PAS de token en parametre
+
+**Fichier** : `data/datasources/[Feature]DataSource.ts`
 
 ```typescript
-try {
-    const entity = [EntityName]Model.fromJson(apiData);
-    return right(entity);
-} catch (error) {
-    if (error instanceof AppError && error.code === "VALIDATION_ERROR") {
-        return left(error);
-    }
-    return left(new AppError("Erreur inconnue", "000", error));
-}
-```
-
-#### **Avantages**
-- ✅ Validation automatique des données d'API
-- ✅ Types TypeScript générés automatiquement  
-- ✅ Messages d'erreur détaillés pour debugging
-- ✅ Protection contre les données malformées
-
----
-
-### Étape 3: Créer l'interface Repository (Domain Layer)
-
-**Fichier**: `src/features/[feature]/domain/repositories/i[Feature]Repositories.ts`
-
-<!-- markdownlint-disable -->
-```typescript
-import { Either } from "@sweet-monads/either";
-import { AppError } from "../../../../core/types/AppError";
-import { [EntityName]Entity } from "../entities/[entityName]";
-
-export interface I[Feature]Repository {
-    get[EntityName]s(filters: GetUsersFiltersParams): Promise<Either<AppError, [EntityName]Entity[]>>;
-    get[EntityName]ById(params: GetUserByIdParams): Promise<Either<AppError, [EntityName]Entity>>;
-    create[EntityName](data: CreateUserDataParams): Promise<Either<AppError, boolean>>;
-    update[EntityName](id: string, data: UpdateUserDataParams): Promise<Either<AppError, boolean>>;
-    delete[EntityName](params: DeleteUserParams): Promise<Either<AppError, boolean>>;
-}
-```
-<!-- markdownlint-restore -->
-
-**Points clés**:
-- Utilisation de `Either<AppError, T>` pour la gestion d'erreurs
-- Méthodes asynchrones (Promise)
-- Définition des contrats uniquement (pas d'implémentation)
-
----
-
-### Étape 4: Implémenter le DataSource (Data Layer)
-
-**Fichier**: `src/features/[feature]/data/datasources/[feature]DataSource.ts`
-
-```typescript
-import AxiosService from "../../../../core/services/axiosSerive";
-import { AppError } from "../../../../core/types/AppError";
-import { [EntityName]Entity } from "../../domain/entities/[entityName]";
-import { [EntityName]Model } from "../DTO/[entityName]Model";
-
-export interface I[Feature]DataSource {
-    get[EntityName]s(token: string, filters: GetUsersFiltersParams): Promise<[EntityName]Entity[]>;
-    get[EntityName]ById(token: string, params: GetUserByIdParams): Promise<[EntityName]Entity>;
-    create[EntityName](token: string, data: CreateUserDataParams): Promise<boolean>;
-    update[EntityName](token: string, id: string, data: UpdateUserDataParams): Promise<boolean>;
-    delete[EntityName](token: string, params: DeleteUserParams): Promise<boolean>;
+export interface IUsersDataSource {
+    getUsers(filters: GetUsersFiltersParams): Promise<PaginatedArray<UserEntity>>;
+    getUserById(params: GetUserByIdParams): Promise<UserEntity>;
+    createUser(data: CreateUserDataParams): Promise<boolean>;
+    updateUser(id: string, data: UpdateUserDataParams): Promise<boolean>;
+    deleteUser(params: DeleteUserParams): Promise<boolean>;
 }
 
-export class [Feature]DataSource implements I[Feature]DataSource {
+export class UsersDataSource implements IUsersDataSource {
     private axiosService = AxiosService.getInstance();
 
-    async get[EntityName]s(token: string, filters: any): Promise<[EntityName]Entity[]> {
-        // Construction de l'URL avec query params
-        const endpoint = '/v1/[resource]/all'
-            + (filters.query ? `?search=${filters.query}` : '?1')
-            + (filters.status ? `&filter.status=${filters.status}` : '');
+    async getUsers(filters: GetUsersFiltersParams): Promise<PaginatedArray<UserEntity>> {
+        const endpoint = '/api/users'
+            + `?page=${filters.page || 1}`
+            + (filters.search ? `&search=${encodeURIComponent(filters.search)}` : '')
+            + (filters.status ? `&status=${encodeURIComponent(filters.status)}` : '')
+            + (filters.role ? `&role=${encodeURIComponent(filters.role)}` : '');
 
         try {
-            const response = await this.axiosService.get(endpoint, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
+            const response = await this.axiosService.get(endpoint);  // Pas de headers manuels !
+            if (!response.data) throw new AppError('Empty response', "001", 'data is empty');
 
-            if (!response.data) {
-                throw new AppError('Empty response', "001", '[entity] data is empty');
-            }
-
-            // Mapping des données API vers Entités
-            return response.data.map((item: any) => 
-                [EntityName]Model.fromJson(item) as [EntityName]Entity
+            return new PaginatedArray(
+                response.data.data.map((item: any) => UserModel.fromJson(item)),
+                response.data.meta.totalPages,
+                response.data.meta.currentPage,
+                response.data.meta.totalItems
             );
         } catch (error) {
+            if (error instanceof AppError) throw error;
             let _error = error as any;
-            if (_error instanceof Object && _error.name == 'AxiosError') {
-                throw new AppError(_error.response.data.message, "001", _error.response.data);
+            if (_error?.name === 'AxiosError') {
+                throw new AppError(_error.response?.data?.message || 'Erreur API', "001", _error.response?.data);
             }
             throw new AppError('Error', "000", error);
         }
     }
-
-    // Méthode POST/PUT/PATCH/DELETE
-    async create[EntityName](token: string, data: any): Promise<boolean> {
-        try {
-            const response = await this.axiosService.post('/v1/[resource]/add', data, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-            return response && response.status === 201;
-        } catch (error) {
-            // ... gestion d'erreurs similaire
-        }
-    }
+    // Meme pattern try/catch pour toutes les methodes CRUD
 }
 ```
 
-**Points clés**:
-- Singleton `AxiosService.getInstance()`
-- Gestion du token Bearer
-- Construction dynamique des query params
-- Gestion des erreurs avec try/catch
-- Mapping via DTO Model
-- Status codes HTTP appropriés
+### Repository (Data) -- try/catch -> Either
 
----
-
-### Étape 5: Implémenter le Repository (Data Layer)
-
-**Fichier**: `src/features/[feature]/data/repositories/[feature]Repositories.ts`
+**Fichier** : `data/repositories/[Feature]Repository.ts`
 
 ```typescript
-import { Either, left, right } from "@sweet-monads/either";
-import { AppError } from "../../../../core/types/AppError";
-import { I[Feature]DataSource } from "../datasources/[feature]DataSource";
-import { I[Feature]Repository } from "../../domain/repositories/i[Feature]Repositories";
-import AuthService from "../../../../core/services/authService";
-import { [EntityName]Entity } from "../../domain/entities/[entityName]";
+export class UsersRepository implements IUsersRepository {
+    constructor(private dataSource: IUsersDataSource) {}
 
-export class [Feature]Repository implements I[Feature]Repository {
-    private dataSource: I[Feature]DataSource;
-    private authService = AuthService.getInstance();
-
-    constructor(dataSource: I[Feature]DataSource) {
-        this.dataSource = dataSource;
-    }
-
-    async get[EntityName]s(filters: GetUsersFiltersParams): Promise<Either<AppError, [EntityName]Entity[]>> {
+    async getUsers(filters: GetUsersFiltersParams): Promise<Either<AppError, PaginatedArray<UserEntity>>> {
         try {
-            // Récupération du token via AuthService
-            const tokenResult = await this.authService.getValidToken();
-            if (tokenResult.isLeft()) {
-                return left(tokenResult.value);
-            }
-
-            // Appel au DataSource
-            const entities = await this.dataSource.get[EntityName]s(tokenResult.value, filters);
-            
-            // Succès: retourne Right
-            return right(entities);
+            return right(await this.dataSource.getUsers(filters));
         } catch (error) {
-            // Erreur: retourne Left
-            if (error instanceof AppError) {
-                return left(error);
-            }
+            if (error instanceof AppError) return left(error);
             return left(new AppError("Une erreur s'est produite", "000", error));
         }
     }
-
-    // ... autres méthodes suivant le même pattern
+    // Meme pattern pour toutes les methodes :
+    // try { return right(await this.dataSource.xxx()); }
+    // catch { return left(error instanceof AppError ? error : new AppError(...)); }
 }
 ```
 
-**Points clés**:
-- Injection des dépendances via constructeur
-- Récupération du token via LocalStorageService
-- Pattern Either: `right()` pour succès, `left()` pour erreur
-- Propagation des erreurs AppError
-- Pas de logique métier, juste orchestration
+### UseCase (Domain) -- validation metier + delegation
 
----
-
-### Étape 6: Créer le UseCase (Domain Layer)
-
-**Fichier**: `src/features/[feature]/domain/usecases/[Feature]UseCase.ts`
+**Fichier** : `domain/usecases/[Feature]UseCase.ts`
 
 ```typescript
-import { Either } from "@sweet-monads/either";
-import { AppError } from "../../../../core/types/AppError";
-import { I[Feature]Repository } from "../repositories/i[Feature]Repositories";
-import { I[Feature]UseCase } from "./I[Feature]UseCase";
-import { [EntityName]Entity } from "../entities/[entityName]";
+import { isValidEmail } from '../../../../core/utils/validators';
 
-export class [Feature]UseCase implements I[Feature]UseCase {
-    private repository: I[Feature]Repository;
+export class UsersUseCase implements IUsersUseCase {
+    constructor(private repository: IUsersRepository) {}
 
-    constructor(repository: I[Feature]Repository) {
-        this.repository = repository;
-    }
-
-    async get[EntityName]s(filters: any): Promise<Either<AppError, [EntityName]Entity[]>> {
-        // Logique métier si nécessaire
-        // Ex: validation des filtres, transformation, règles métier
-        
-        // Filtre des status SUSPENDU → disabled
-        if (filters.status.includes('SUSPENDU')) {
-            filters.status = filters.status.filter((s: string) => s !== 'SUSPENDU');
-            filters.disabled = true;
-        }
-
-        // Délégation au repository
-        return await this.repository.get[EntityName]s(filters);
-    }
-
-    async create[EntityName](data: any): Promise<Either<AppError, boolean>> {
-        // Validation des données
-        if (!data.name || data.name.trim() === '') {
-            return left(new AppError("Le nom est requis", "400", "validation_error"));
-        }
-
-        // Règles métier
-        // Ex: calculs, vérifications, transformations
-
-        return await this.repository.create[EntityName](data);
-    }
-}
-```
-
-**Points clés**:
-- Contient la **logique métier**
-- Validation des données entrantes
-- Application des règles métier
-- Transformation des données si nécessaire
-- Délègue au repository pour les opérations
-
----
-
-### Étape 7: Créer le Redux Provider (Presentation Layer)
-
-**Fichier**: `src/features/[feature]/presentation/redux/[feature]Provider.ts`
-
-```typescript
-import { createAsyncThunk } from "@reduxjs/toolkit";
-import { [Feature]UseCase } from "../../domain/usecases/[Feature]UseCase";
-import { [Feature]Repository } from "../../data/repositories/[feature]Repositories";
-import { [Feature]DataSource } from "../../data/datasources/[feature]DataSource";
-import LocalStorageService from "../../../../core/services/localStorageService";
-
-// Initialisation de la chaîne de dépendances (plus besoin de LocalStorageService)
-const dataSource = new [Feature]DataSource();
-const repository = new [Feature]Repository(dataSource);
-const useCase = new [Feature]UseCase(repository);
-
-// AsyncThunk pour récupérer les données
-export const get[EntityName]sProvider = createAsyncThunk(
-    '[feature]/get[EntityName]s',
-    async (filters: GetUsersFiltersParams, { rejectWithValue }) => {
-        const result = await useCase.get[EntityName]s(filters);
-        
-        return result.mapRight(data => data)
-            .mapLeft(error => rejectWithValue(error.message))
-            .value;
-    }
-);
-
-// AsyncThunk pour créer une entité
-export const create[EntityName]Provider = createAsyncThunk(
-    '[feature]/create[EntityName]',
-    async (data: CreateUserDataParams, { rejectWithValue }) => {
-        const result = await useCase.create[EntityName](data);
-        
-        return result.mapRight(success => success)
-            .mapLeft(error => rejectWithValue(error.message))
-            .value;
-    }
-);
-
-// ... autres providers (update, delete, etc.)
-```
-
-**Points clés**:
-- Utilisation de `createAsyncThunk` de Redux Toolkit
-- Initialisation de la chaîne: DataSource → Repository → UseCase
-- Mapping Either vers résultat Redux (mapRight/mapLeft)
-- Gestion des erreurs avec `rejectWithValue`
-- Naming convention: `[feature]/[action]`
-
----
-
-### Étape 8: Créer le Redux Slice (Presentation Layer)
-
-**Fichier**: `src/features/[feature]/presentation/redux/[feature]Slice.ts`
-
-```typescript
-import { createSlice } from "@reduxjs/toolkit";
-import { [EntityName]Entity } from "../../domain/entities/[entityName]";
-import { 
-    get[EntityName]sProvider, 
-    create[EntityName]Provider,
-    // ... autres providers
-} from "./[feature]Provider";
-
-// Définition du state
-interface [Feature]State {
-    loading: boolean;
-    error: string | null;
-    success: string | null;
-    [entityName]s: [EntityName]Entity[] | null;
-    // ... autres données
-}
-
-// État initial
-const initialState: [Feature]State = {
-    loading: false,
-    error: null,
-    success: null,
-    [entityName]s: null,
-};
-
-// Création du slice
-const [feature]Slice = createSlice({
-    name: '[feature]',
-    initialState,
-    reducers: {
-        // Reducers synchrones
-        clearSuccess: (state) => {
-            state.success = null;
-        },
-        clearError: (state) => {
-            state.error = null;
-        },
-        reset[Feature]State: (state) => {
-            Object.assign(state, initialState);
-        }
-    },
-    extraReducers: (builder) => {
-        // Gestion du provider get[EntityName]s
-        builder
-            .addCase(get[EntityName]sProvider.pending, (state) => {
-                state.loading = true;
-                state.error = null;
-                state.[entityName]s = null;
-            })
-            .addCase(get[EntityName]sProvider.fulfilled, (state, action) => {
-                state.loading = false;
-                state.[entityName]s = action.payload;
-            })
-            .addCase(get[EntityName]sProvider.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.error.message || 'Une erreur est survenue';
-            })
-            
-            // Gestion du provider create[EntityName]
-            .addCase(create[EntityName]Provider.pending, (state) => {
-                state.loading = true;
-                state.error = null;
-            })
-            .addCase(create[EntityName]Provider.fulfilled, (state) => {
-                state.loading = false;
-                state.success = "[EntityName] créé avec succès !";
-                // Optionnel: invalider la liste pour forcer un rechargement
-                state.[entityName]s = null;
-            })
-            .addCase(create[EntityName]Provider.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.error.message || 'Une erreur est survenue';
-            });
-            
-        // ... autres extraReducers
-    }
-});
-
-// Export des actions et reducer
-export const { clearSuccess, clearError, reset[Feature]State } = [feature]Slice.actions;
-export const [feature]Reducer = [feature]Slice.reducer;
-```
-
-**Points clés**:
-- Type strict pour le state
-- État initial bien défini
-- Reducers synchrones pour actions simples
-- `extraReducers` pour les AsyncThunks (pending/fulfilled/rejected)
-- Pattern: loading → true en pending, false en fulfilled/rejected
-- Messages de succès/erreur clairs
-- Export des actions et reducer
-
----
-
-### Étape 9: Enregistrer le Reducer dans le Store
-
-**Fichier**: `src/core/store.ts`
-
-```typescript
-import { configureStore } from '@reduxjs/toolkit';
-import { [feature]Reducer } from '../features/[feature]/presentation/redux/[feature]Slice';
-// ... autres imports
-
-export const store = configureStore({
-    reducer: {
-        [feature]: [feature]Reducer,
-        // ... autres reducers
-    },
-});
-
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
-```
-
----
-
-### Étape 10: Utiliser dans un Composant React
-
-**Fichier**: `src/features/[feature]/presentation/components/[Component]/[Component].tsx`
-
-```typescript
-import React, { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../../../../../core/store';
-import { 
-    get[EntityName]sProvider, 
-    create[EntityName]Provider 
-} from '../../redux/[feature]Provider';
-import { clearSuccess, clearError } from '../../redux/[feature]Slice';
-import { CircularProgress, Button, Alert } from '@mui/material';
-
-const [ComponentName]: React.FC = () => {
-    const dispatch = useDispatch<AppDispatch>();
-    
-    // Sélection du state Redux
-    const { 
-        [entityName]s, 
-        loading, 
-        error, 
-        success 
-    } = useSelector((state: RootState) => state.[feature]);
-
-    // Chargement initial
-    useEffect(() => {
-        dispatch(get[EntityName]sProvider({ /* filters */ }));
-    }, [dispatch]);
-
-    // Gestion des messages de succès
-    useEffect(() => {
-        if (success) {
-            // Afficher un toast ou notification
-            console.log(success);
-            setTimeout(() => dispatch(clearSuccess()), 3000);
-        }
-    }, [success, dispatch]);
-
-    // Gestion des erreurs
-    useEffect(() => {
-        if (error) {
-            console.error(error);
-            setTimeout(() => dispatch(clearError()), 3000);
-        }
-    }, [error, dispatch]);
-
-    // Handler pour créer une entité
-    const handleCreate = async () => {
-        const data = {
-            // ... données du formulaire
-        };
-        
-        await dispatch(create[EntityName]Provider(data));
-        
-        // Recharger la liste après création
-        dispatch(get[EntityName]sProvider({ /* filters */ }));
-    };
-
-    // Affichage du loading
-    if (loading) {
-        return <CircularProgress />;
-    }
-
-    return (
-        <div>
-            {/* Messages */}
-            {error && <Alert severity="error">{error}</Alert>}
-            {success && <Alert severity="success">{success}</Alert>}
-
-            {/* Liste */}
-            <div>
-                {[entityName]s?.map(entity => (
-                    <div key={entity.id}>
-                        {/* Affichage de l'entité */}
-                        {entity.name}
-                    </div>
-                ))}
-            </div>
-
-            {/* Bouton d'action */}
-            <Button onClick={handleCreate}>
-                Créer
-            </Button>
-        </div>
-    );
-};
-
-export default [ComponentName];
-```
-
-**Points clés**:
-- Import des hooks Redux (`useDispatch`, `useSelector`)
-- Types stricts (`AppDispatch`, `RootState`)
-- Dispatch des providers dans `useEffect` ou handlers
-- Gestion des états loading/error/success
-- Nettoyage des messages après affichage
-- Rechargement des données après modifications
-
----
-
-## 🔄 Guide de modification de fonctionnalités
-
-### Modifier une Entité existante
-
-**Étapes**:
-1. **Mettre à jour l'Entity** (`domain/entities/`)
-2. **Mettre à jour le DTO** (`data/DTO/`) pour le mapping
-3. **Mettre à jour le State Redux** (`presentation/redux/[feature]Slice.ts`)
-4. **Mettre à jour les composants** qui utilisent l'entité
-
-**Exemple**: Ajouter une propriété `age` à `UserCandidatEntity`
-
-```typescript
-// 1. Entity
-export class UserCandidatEntity {
-    constructor(
-        // ... propriétés existantes
-        public age: number | null,  // ✅ Nouvelle propriété
-    ) {}
-}
-
-// 2. DTO
-export class UserCandidatModel {
-    static fromJson(json: any): UserCandidatEntity {
-        return new UserCandidatEntity(
-            // ... mappings existants
-            json.age ?? null,  // ✅ Mapping de la nouvelle propriété
-        );
-    }
-}
-
-// 3. Redux State (si nécessaire de filtrer/afficher)
-// Pas de modification nécessaire si c'est juste un champ de l'entité
-
-// 4. Composant
-const CandidateCard: React.FC<{ candidate: UserCandidatEntity }> = ({ candidate }) => {
-    return (
-        <div>
-            {/* ... affichages existants */}
-            <p>Âge: {candidate.age ?? 'Non renseigné'}</p>  {/* ✅ Utilisation */}
-        </div>
-    );
-};
-```
-
----
-
-### Ajouter une nouvelle méthode à un UseCase
-
-**Étapes**:
-1. Ajouter la méthode dans **l'interface du Repository** (`domain/repositories/`)
-2. Implémenter dans **le Repository** (`data/repositories/`)
-3. Implémenter dans **le DataSource** (`data/datasources/`)
-4. Ajouter la méthode dans **le UseCase** (`domain/usecases/`)
-5. Créer un **Provider Redux** (`presentation/redux/`)
-6. Ajouter les **extraReducers** dans le Slice
-7. Utiliser dans **le composant**
-
-**Exemple**: Ajouter une méthode pour archiver un candidat
-
-```typescript
-// 1. Interface Repository
-export interface IDashRepository {
-    // ... méthodes existantes
-    archiveCandidate(candidateId: string): Promise<Either<AppError, boolean>>;
-}
-
-// 2. Implémentation Repository
-export class DashRepository implements IDashRepository {
-    async archiveCandidate(candidateId: string): Promise<Either<AppError, boolean>> {
-        try {
-            const token = this.localStorageService.getAccessToken();
-            if (!token) {
-                return left(new AppError("Session expirée", "401", "session_expired"));
-            }
-            const result = await this.dataSource.archiveCandidate(token, candidateId);
-            return right(result);
-        } catch (error) {
-            if (error instanceof AppError) return left(error);
-            return left(new AppError("Erreur", "000", error));
-        }
-    }
-}
-
-// 3. DataSource
-export class DashDataSource implements IDashDataSource {
-    async archiveCandidate(token: string, candidateId: string): Promise<boolean> {
-        try {
-            const response = await this.axiosService.post(
-                `/v1/user-info/archive/${candidateId}`, 
-                {},
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            return response && response.status === 200;
-        } catch (error) {
-            // ... gestion erreur
-            throw error;
-        }
-    }
-}
-
-// 4. UseCase
-export class DashUseCase implements IDashUseCase {
-    async archiveCandidate(candidateId: string): Promise<Either<AppError, boolean>> {
-        // Validation
-        if (!candidateId) {
-            return left(new AppError("ID candidat requis", "400", "validation"));
-        }
-        return await this.repository.archiveCandidate(candidateId);
-    }
-}
-
-// 5. Provider Redux
-export const archiveCandidateProvider = createAsyncThunk(
-    'dash/archiveCandidate',
-    async (candidateId: string, { rejectWithValue }) => {
-        const result = await useCase.archiveCandidate(candidateId);
-        return result.mapRight(data => data)
-            .mapLeft(error => rejectWithValue(error.message))
-            .value;
-    }
-);
-
-// 6. Slice (extraReducers)
-builder
-    .addCase(archiveCandidateProvider.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-    })
-    .addCase(archiveCandidateProvider.fulfilled, (state) => {
-        state.loading = false;
-        state.success = "Candidat archivé avec succès !";
-        state.candidates = null; // Forcer rechargement
-    })
-    .addCase(archiveCandidateProvider.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.error.message || 'Erreur lors de l\'archivage';
-    });
-
-// 7. Utilisation dans composant
-const handleArchive = async (candidateId: string) => {
-    await dispatch(archiveCandidateProvider(candidateId));
-    dispatch(getCandidatesProvider({ /* filters */ }));
-};
-```
-
----
-
-### Modifier un endpoint API
-
-**Étapes**:
-1. Identifier le DataSource concerné
-2. Mettre à jour l'URL et/ou les paramètres dans la méthode
-3. Ajuster le mapping si la structure de réponse a changé
-4. Tester la fonctionnalité
-
-**Exemple**: Changement d'endpoint de `/v1/user-info/all` vers `/v1/users/candidates`
-
-```typescript
-// data/datasources/dashDataSource.ts
-
-async getCandidates(token: string, filters: IFilterCandidatesParams): Promise<PaginatedArray<UserCandidatEntity>> {
-    // ❌ ANCIEN
-    // const endpoint = '/v1/user-info/by-role/candidate' + ...
-    
-    // ✅ NOUVEAU
-    const endpoint = '/v1/users/candidates'
-        + (filters.query ? `?search=${filters.query}` : '?1')
-        + (filters.status ? `&status=${filters.status}` : '');
-
-    const response = await this.axiosService.get(endpoint, {
-        headers: { Authorization: `Bearer ${token}` }
-    });
-
-    // Si la structure de réponse a changé, ajuster ici
-    return new PaginatedArray(
-        response.data.items.map((item: any) => UserCandidatModel.fromJson(item)),
-        response.data.pagination.totalPages,
-        response.data.pagination.currentPage,
-        response.data.pagination.total,
-    );
-}
-```
-
----
-
-## 📜 Conventions de code
-
-### Naming Conventions
-
-| Type | Convention | Exemple |
-|------|-----------|---------|
-| **Fichiers** | camelCase | `userCandidatEntity.ts` |
-| **Composants React** | PascalCase | `CandidateList.tsx` |
-| **Classes** | PascalCase | `UserCandidatEntity` |
-| **Interfaces** | PascalCase avec I- | `IDashRepository` |
-| **Variables** | camelCase | `candidateList` |
-| **Constantes** | UPPER_SNAKE_CASE | `BASE_URL` |
-| **Redux Slices** | camelCase | `dashSlice` |
-| **Redux Providers** | camelCase avec Provider suffix | `getCandidatesProvider` |
-
-### Structure des imports
-
-Toujours organiser les imports dans cet ordre :
-```typescript
-// 1. Imports externes (libraries)
-import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Button, CircularProgress } from '@mui/material';
-
-// 2. Imports de types
-import { RootState, AppDispatch } from '../../../../../core/store';
-import { IFilterParams } from '../../../../../core/types/FilterParams';
-
-// 3. Imports d'entités/domaine
-import { UserCandidatEntity } from '../../../domain/entities/userCandidat';
-
-// 4. Imports de Redux (providers, slices)
-import { getCandidatesProvider } from '../../redux/dashProvider';
-import { clearSuccess, clearError } from '../../redux/dashSlice';
-
-// 5. Imports locaux (composants, styles)
-import { CandidateCard } from '../CandidateCard/CandidateCard';
-import './CandidateList.scss';
-```
-
-### Gestion d'erreurs
-
-**Toujours utiliser le pattern Either**:
-```typescript
-// ✅ BON
-async getCandidate(id: string): Promise<Either<AppError, UserCandidatEntity>> {
-    try {
-        const result = await this.repository.getCandidateById(id);
-        return right(result);
-    } catch (error) {
-        if (error instanceof AppError) return left(error);
-        return left(new AppError("Erreur inconnue", "000", error));
-    }
-}
-
-// ❌ MAUVAIS (pas de Either)
-async getCandidate(id: string): Promise<UserCandidatEntity> {
-    return await this.repository.getCandidateById(id);
-}
-```
-
-### Gestion des tokens
-
-**Toujours récupérer le token via LocalStorageService**:
-```typescript
-// ✅ BON
-const token = this.localStorageService.getAccessToken();
-if (!token) {
-    return left(new AppError("Session expirée", "401", "session_expired"));
-}
-
-// ❌ MAUVAIS (accès direct)
-const token = localStorage.getItem('accessToken');
-```
-
-### Types nullables
-
-**Utiliser `| null` et l'opérateur `??`**:
-```typescript
-// ✅ BON
-public phoneNumber: string | null;
-const phone = json.phone_number ?? null;
-
-// Dans le composant
-<p>{candidate.phoneNumber ?? 'Non renseigné'}</p>
-
-// ❌ MAUVAIS
-public phoneNumber: string;  // Peut être undefined/null implicitement
-const phone = json.phone_number || null;  // '' serait converti en null
-```
-
----
-
-## 🗂️ État Redux et Gestion
-
-### Structure type d'un State
-
-```typescript
-interface FeatureState {
-    // États de chargement
-    loading: boolean;                    // Loading global
-    dialogLoading: boolean;              // Loading pour dialogs/modals
-    
-    // États de messages
-    error: string | null;                // Message d'erreur
-    success: string | null;              // Message de succès
-    
-    // Données principales
-    items: EntityType[] | null;          // Liste simple
-    paginatedItems: PaginatedArray<EntityType> | null;  // Liste paginée
-    currentItem: EntityType | null;      // Item sélectionné
-    
-    // Données de référence (dropdowns, etc.)
-    statuses: StatusEntity[] | null;
-    categories: CategoryEntity[] | null;
-    
-    // ... autres données spécifiques
-}
-```
-
-### Pattern de mise à jour
-
-**Après une création/modification/suppression, invalider les listes**:
-```typescript
-.addCase(createItemProvider.fulfilled, (state) => {
-    state.loading = false;
-    state.success = "Item créé avec succès !";
-    state.items = null;  // ✅ Force le rechargement de la liste
-})
-```
-
-**Dans le composant, recharger la liste**:
-```typescript
-const handleCreate = async () => {
-    await dispatch(createItemProvider(data));
-    dispatch(getItemsProvider({ /* filters */ }));  // ✅ Rechargement
-};
-```
-
-### Gestion de la pagination
-
-```typescript
-// State
-interface DashState {
-    jobOffers: PaginatedArray<JobOfferEntity> | null;
-}
-
-// Provider
-export const getJobOffersProvider = createAsyncThunk(
-    'dash/getJobOffers',
-    async (filters: { page: number, ...otherFilters }, { rejectWithValue }) => {
-        const result = await useCase.getJobOffers(filters);
-        return result.mapRight(data => data)
-            .mapLeft(error => rejectWithValue(error.message))
-            .value;
-    }
-);
-
-// Composant
-const [currentPage, setCurrentPage] = useState(1);
-const { jobOffers, loading } = useSelector((state: RootState) => state.dash);
-
-useEffect(() => {
-    dispatch(getJobOffersProvider({ page: currentPage, /* autres filtres */ }));
-}, [currentPage, dispatch]);
-
-const handlePageChange = (newPage: number) => {
-    setCurrentPage(newPage);
-};
-
-// Affichage
-<Pagination 
-    count={jobOffers?.totalPages || 0} 
-    page={currentPage} 
-    onChange={(e, page) => handlePageChange(page)} 
-/>
-```
-
----
-
-## 🎓 Exemples pratiques
-
-### Exemple complet: Feature "Job Offers"
-
-#### 1. Entité
-```typescript
-// domain/entities/jobOffer.ts
-export class JobOfferEntity {
-    constructor(
-        public id: string,
-        public title: string,
-        public description: string,
-        public status: string,
-        public contractType: string,
-        public location: string,
-        public salary: number | null,
-        public createdAt: Date,
-    ) {}
-}
-```
-
-#### 2. DTO
-```typescript
-// data/DTO/jobOfferModel.ts
-export class JobOfferModel {
-    static fromJson(json: any): JobOfferEntity {
-        return new JobOfferEntity(
-            json.id,
-            json.title,
-            json.description,
-            json.status,
-            json.contract_type,
-            json.location,
-            json.salary ?? null,
-            new Date(json.created_at),
-        );
-    }
-}
-```
-
-#### 3. Repository Interface
-```typescript
-// domain/repositories/iJobOfferRepository.ts
-export interface IJobOfferRepository {
-    getJobOffers(filters: any): Promise<Either<AppError, PaginatedArray<JobOfferEntity>>>;
-    createJobOffer(data: any): Promise<Either<AppError, boolean>>;
-}
-```
-
-#### 4. DataSource
-```typescript
-// data/datasources/jobOfferDataSource.ts
-export class JobOfferDataSource {
-    private axiosService = AxiosService.getInstance();
-
-    async getJobOffers(token: string, filters: any): Promise<PaginatedArray<JobOfferEntity>> {
-        const endpoint = `/v1/job-offer/all?page=${filters.page || 1}`;
-        const response = await this.axiosService.get(endpoint, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        return new PaginatedArray(
-            response.data.data.map((item: any) => JobOfferModel.fromJson(item)),
-            response.data.meta.totalPages,
-            response.data.meta.currentPage,
-            response.data.meta.totalItems,
-        );
-    }
-
-    async createJobOffer(token: string, data: any): Promise<boolean> {
-        const response = await this.axiosService.post('/v1/job-offer/add', data, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-        return response.status === 201;
-    }
-}
-```
-
-#### 5. Repository
-```typescript
-// data/repositories/jobOfferRepository.ts
-export class JobOfferRepository implements IJobOfferRepository {
-    constructor(
-        private dataSource: JobOfferDataSource,
-        private localStorage: ILocalStorageService
-    ) {}
-
-    async getJobOffers(filters: any): Promise<Either<AppError, PaginatedArray<JobOfferEntity>>> {
-        try {
-            const token = this.localStorage.getAccessToken();
-            if (!token) return left(new AppError("Session expirée", "401", "expired"));
-            
-            const offers = await this.dataSource.getJobOffers(token, filters);
-            return right(offers);
-        } catch (error) {
-            if (error instanceof AppError) return left(error);
-            return left(new AppError("Erreur", "000", error));
-        }
-    }
-
-    async createJobOffer(data: any): Promise<Either<AppError, boolean>> {
-        try {
-            const token = this.localStorage.getAccessToken();
-            if (!token) return left(new AppError("Session expirée", "401", "expired"));
-            
-            const result = await this.dataSource.createJobOffer(token, data);
-            return right(result);
-        } catch (error) {
-            if (error instanceof AppError) return left(error);
-            return left(new AppError("Erreur", "000", error));
-        }
-    }
-}
-```
-
-#### 6. UseCase
-```typescript
-// domain/usecases/JobOfferUseCase.ts
-export class JobOfferUseCase {
-    constructor(private repository: IJobOfferRepository) {}
-
-    async getJobOffers(filters: any): Promise<Either<AppError, PaginatedArray<JobOfferEntity>>> {
-        // Validation des filtres
+    async getUsers(filters: GetUsersFiltersParams): Promise<Either<AppError, PaginatedArray<UserEntity>>> {
         if (filters.page && filters.page < 1) {
             return left(new AppError("Page invalide", "400", "validation"));
         }
-        
-        return await this.repository.getJobOffers(filters);
+        if (filters.status && !['ACTIVE', 'INACTIVE', 'SUSPENDED'].includes(filters.status)) {
+            return left(new AppError("Statut de filtre invalide", "400", "validation"));
+        }
+        return await this.repository.getUsers(filters);
     }
 
-    async createJobOffer(data: any): Promise<Either<AppError, boolean>> {
-        // Validation
-        if (!data.title || data.title.trim() === '') {
-            return left(new AppError("Titre requis", "400", "validation"));
+    async createUser(data: CreateUserDataParams): Promise<Either<AppError, boolean>> {
+        // Validations metier detaillees
+        if (!data.firstName || !data.lastName) {
+            return left(new AppError("Nom et prenom requis", "400", "validation"));
         }
-        
-        return await this.repository.createJobOffer(data);
+        if (!data.email || !isValidEmail(data.email)) {
+            return left(new AppError("Email invalide", "400", "validation"));
+        }
+        if (!data.password || data.password.length < 6) {
+            return left(new AppError("Mot de passe doit contenir au moins 6 caracteres", "400", "validation"));
+        }
+        return await this.repository.createUser(data);
     }
+    // Meme pattern pour update, delete, getUserById...
 }
 ```
 
-#### 7. Redux Provider
+> Toujours importer `isValidEmail` depuis `core/utils/validators.ts`.
+
+### Zustand Store (Presentation) -- 1 seul fichier par feature
+
+**Fichier** : `presentation/store/[feature]Store.ts`
+
 ```typescript
-// presentation/redux/jobOfferProvider.ts
-const dataSource = new JobOfferDataSource();
-const localStorage = LocalStorageService.getInstance();
-const repository = new JobOfferRepository(dataSource, localStorage);
-const useCase = new JobOfferUseCase(repository);
+// Chaine de dependances Clean Architecture
+const dataSource = new UsersDataSource();
+const repository = new UsersRepository(dataSource);
+const useCase = new UsersUseCase(repository);
 
-export const getJobOffersProvider = createAsyncThunk(
-    'jobOffer/getJobOffers',
-    async (filters: any, { rejectWithValue }) => {
-        const result = await useCase.getJobOffers(filters);
-        return result.mapRight(data => data)
-            .mapLeft(error => rejectWithValue(error.message))
-            .value;
-    }
-);
-
-export const createJobOfferProvider = createAsyncThunk(
-    'jobOffer/createJobOffer',
-    async (data: any, { rejectWithValue }) => {
-        const result = await useCase.createJobOffer(data);
-        return result.mapRight(success => success)
-            .mapLeft(error => rejectWithValue(error.message))
-            .value;
-    }
-);
-```
-
-#### 8. Redux Slice
-```typescript
-// presentation/redux/jobOfferSlice.ts
-interface JobOfferState {
+interface UsersState {
     loading: boolean;
     error: string | null;
     success: string | null;
-    jobOffers: PaginatedArray<JobOfferEntity> | null;
+    users: PaginatedArray<UserEntity> | null;
+    currentUser: UserEntity | null;
+
+    // CRUD complet
+    getUsers: (filters: GetUsersFiltersParams) => Promise<void>;
+    getUserById: (params: GetUserByIdParams) => Promise<void>;
+    createUser: (data: CreateUserDataParams) => Promise<void>;
+    updateUser: (id: string, data: UpdateUserDataParams) => Promise<void>;
+    deleteUser: (params: DeleteUserParams) => Promise<void>;
+
+    clearSuccess: () => void;
+    clearError: () => void;
+    clearCurrentUser: () => void;
+    resetUsersState: () => void;
 }
 
-const initialState: JobOfferState = {
-    loading: false,
-    error: null,
-    success: null,
-    jobOffers: null,
-};
+export const useUsersStore = create<UsersState>()(
+    devtools(
+        (set) => ({
+            ...initialState,
 
-const jobOfferSlice = createSlice({
-    name: 'jobOffer',
-    initialState,
-    reducers: {
-        clearMessages: (state) => {
-            state.error = null;
-            state.success = null;
-        }
-    },
-    extraReducers: (builder) => {
-        builder
-            .addCase(getJobOffersProvider.pending, (state) => {
-                state.loading = true;
-                state.error = null;
-            })
-            .addCase(getJobOffersProvider.fulfilled, (state, action) => {
-                state.loading = false;
-                state.jobOffers = action.payload;
-            })
-            .addCase(getJobOffersProvider.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.error.message || 'Erreur';
-            })
-            .addCase(createJobOfferProvider.pending, (state) => {
-                state.loading = true;
-            })
-            .addCase(createJobOfferProvider.fulfilled, (state) => {
-                state.loading = false;
-                state.success = "Offre créée avec succès !";
-                state.jobOffers = null;
-            })
-            .addCase(createJobOfferProvider.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.error.message || 'Erreur';
-            });
-    }
-});
+            getUsers: async (filters) => {
+                set({ loading: true, error: null }, false, 'users/getUsers/pending');
+                const result = await useCase.getUsers(filters);
 
-export const { clearMessages } = jobOfferSlice.actions;
-export const jobOfferReducer = jobOfferSlice.reducer;
+                if (result.isLeft()) {
+                    set({ loading: false, error: result.value.message }, false, 'users/getUsers/rejected');
+                } else {
+                    set({ loading: false, users: result.value }, false, 'users/getUsers/fulfilled');
+                }
+            },
+            // Meme pattern Either pour toutes les actions CRUD
+        }),
+        { name: 'UsersStore' }
+    )
+);
 ```
 
-#### 9. Composant
-```typescript
-// presentation/components/JobOfferList/JobOfferList.tsx
-import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../../../../../core/store';
-import { getJobOffersProvider, createJobOfferProvider } from '../../redux/jobOfferProvider';
-import { clearMessages } from '../../redux/jobOfferSlice';
-import { CircularProgress, Button, Alert, Pagination } from '@mui/material';
+### Composant React (Presentation)
 
-const JobOfferList: React.FC = () => {
-    const dispatch = useDispatch<AppDispatch>();
-    const { jobOffers, loading, error, success } = useSelector(
-        (state: RootState) => state.jobOffer
-    );
+```typescript
+const UsersPage: React.FC = () => {
+    const { users, loading, error, success, getUsers, clearSuccess, clearError } = useUsersStore();
     const [currentPage, setCurrentPage] = useState(1);
 
-    useEffect(() => {
-        dispatch(getJobOffersProvider({ page: currentPage }));
-    }, [currentPage, dispatch]);
+    useEffect(() => { getUsers({ page: currentPage }); }, [currentPage, getUsers]);
 
-    useEffect(() => {
-        if (success) {
-            setTimeout(() => dispatch(clearMessages()), 3000);
-        }
-    }, [success, dispatch]);
+    // Auto-clear messages apres 3s
+    useEffect(() => { if (success) setTimeout(() => clearSuccess(), 3000); }, [success, clearSuccess]);
+    useEffect(() => { if (error) setTimeout(() => clearError(), 3000); }, [error, clearError]);
 
-    const handleCreate = async () => {
-        const data = {
-            title: "Développeur React",
-            description: "Description...",
-            contractType: "CDI",
-            location: "Paris",
-        };
-        
-        await dispatch(createJobOfferProvider(data));
-        dispatch(getJobOffersProvider({ page: currentPage }));
-    };
-
-    if (loading && !jobOffers) {
-        return <CircularProgress />;
-    }
+    if (loading && !users) return <CircularProgress />;
 
     return (
         <div>
             {error && <Alert severity="error">{error}</Alert>}
             {success && <Alert severity="success">{success}</Alert>}
 
-            <Button onClick={handleCreate} disabled={loading}>
-                Créer une offre
-            </Button>
+            {users?.data.map(user => (
+                <div key={user.id}>{getFullName(user)}</div>
+            ))}
 
-            <div>
-                {jobOffers?.data.map(offer => (
-                    <div key={offer.id}>
-                        <h3>{offer.title}</h3>
-                        <p>{offer.description}</p>
-                        <p>{offer.location} - {offer.contractType}</p>
-                    </div>
-                ))}
-            </div>
-
-            {jobOffers && (
-                <Pagination 
-                    count={jobOffers.totalPages} 
-                    page={currentPage}
-                    onChange={(e, page) => setCurrentPage(page)}
-                />
-            )}
+            {users && <Pagination count={users.totalPages} page={currentPage}
+                onChange={(_, page) => setCurrentPage(page)} />}
         </div>
     );
 };
-
-export default JobOfferList;
 ```
 
 ---
 
-## 🚀 Checklist pour ajouter une nouvelle fonctionnalité
+## Guide de modification
 
-- [ ] **Entité**: Créer la classe Entity dans `domain/entities/`
-- [ ] **DTO**: Créer le Model avec `fromJson` et `toJson` dans `data/DTO/`
-- [ ] **Validation Zod**: Ajouter les schémas Zod dans le DTO pour validation API
-- [ ] **Repository Interface**: Définir les méthodes dans `domain/repositories/i[Feature]Repository.ts`
-- [ ] **DataSource Interface + Implémentation**: Créer/Modifier dans `data/datasources/`
-- [ ] **Repository Implémentation**: Créer/Modifier dans `data/repositories/`
-- [ ] **UseCase**: Créer/Modifier dans `domain/usecases/`
-- [ ] **Redux Provider**: Créer les AsyncThunks dans `presentation/redux/[feature]Provider.ts`
-- [ ] **Redux Slice**: Ajouter au state et extraReducers dans `presentation/redux/[feature]Slice.ts`
-- [ ] **Store**: Enregistrer le reducer dans `core/store.ts`
-- [ ] **Composant**: Créer/Modifier le composant React dans `presentation/components/`
+### Modifier une Entite existante
+1. Mettre a jour l'interface Entity (`domain/entities/`)
+2. Mettre a jour le schema Zod + `fromJson`/`toJson` dans le DTO (`data/DTO/`)
+3. Mettre a jour les composants qui affichent la nouvelle propriete
+
+> Le Store Zustand n'a pas besoin de changer si c'est juste un nouveau champ sur l'entite.
+
+### Ajouter une methode (ex: archiveUser)
+1. Ajouter dans **l'interface Repository** (`domain/repositories/I[Feature]Repository.ts`)
+2. Ajouter dans **le DataSource** -- interface + implementation (`data/datasources/`)
+3. Implementer dans **le Repository** avec try/catch -> Either (`data/repositories/`)
+4. Ajouter dans **le UseCase** avec validation metier (`domain/usecases/`)
+5. Ajouter l'action dans **le Store Zustand** (`presentation/store/`)
+6. Appeler depuis **le composant**
+
+### Modifier un endpoint API
+Seul le **DataSource** change. Les autres couches restent inchangees.
 
 ---
 
-## 📝 Notes importantes
+## Conventions de code
 
-### Gestion des dépendances
+### Naming
+| Type | Convention | Exemple |
+|------|-----------|---------|
+| Fichiers entites/DTO | PascalCase | `UserEntity.ts`, `UserModel.ts` |
+| Fichiers stores | camelCase | `usersStore.ts` |
+| Composants React | PascalCase | `UsersList.tsx` |
+| Classes | PascalCase | `UserEntity`, `UsersDataSource` |
+| Interfaces | I + PascalCase | `IUsersRepository`, `IUsersDataSource` |
+| Zustand hooks | use...Store | `useUsersStore` |
+| Variables | camelCase | `currentUser` |
+| Constantes | UPPER_SNAKE | `BASE_URL` |
 
-Les dépendances doivent toujours suivre ce flux :
-```
-Component → Redux Provider → UseCase → Repository → DataSource → API
-```
-
-Jamais de court-circuit (ex: Component → DataSource directement)
-
-### Gestion des tokens d'authentification
-
-- Toujours utiliser `LocalStorageService.getInstance().getAccessToken()`
-- Vérifier la présence du token avant chaque appel API
-- Retourner une erreur `401` si le token est absent ou expiré
-
-### Pattern Either
-
-- **Right**: Succès, contient les données
-- **Left**: Erreur, contient AppError
-
+### Ordre des imports
 ```typescript
-// Vérification du résultat
-result.mapRight(data => {
-    console.log("Succès:", data);
-    return data;
-}).mapLeft(error => {
-    console.error("Erreur:", error.message);
-    return null;
-});
+// 1. Libs externes
+import React, { useEffect } from 'react';
+import { Button } from '@mui/material';
+
+// 2. Core (types, services)
+import { AppError } from '../../../../core/types/AppError';
+
+// 3. Domain (entites, types)
+import { UserEntity } from '../../domain/entities/UserEntity';
+
+// 4. Stores Zustand
+import { useUsersStore } from '../../store/usersStore';
+
+// 5. Composants locaux + styles
+import { UserCard } from '../UserCard/UserCard';
+import './UsersPage.scss';
 ```
 
-### Gestion des tokens d'authentification
+---
 
-- Toujours utiliser `AuthService.getInstance().getValidToken()` au lieu de LocalStorageService
-- Le token est automatiquement validé, renouvelé si nécessaire, et géré par Either monad
-- Plus besoin de vérifier manuellement l'expiration ou gérer le refresh
-- Les intercepteurs Axios ajoutent automatiquement le token Bearer
+## Authentification
 
-### Messages utilisateur
+### Architecture auth
+- **AuthService** (singleton) : login, logout, refreshToken, getValidToken, isAuthenticated, getCurrentUser
+- **TokenService** : stockage/lecture/validation JWT via localStorage
+- **AxiosInterceptor** : injection automatique du Bearer token + retry 401 avec refresh queue
+- **authStore** (Zustand) : state global d'authentification
+- **useAuth** (hook) : wrapper ergonomique pour les composants, retourne Either
 
-- **Success**: Messages positifs et clairs ("Candidat créé avec succès !")
-- **Error**: Messages d'erreur compréhensibles ("Une erreur est survenue lors de la création")
-- Toujours nettoyer les messages après 3 secondes
-
-### Authentification avec useAuth
-
-- Utiliser le hook `useAuth()` dans les composants pour gérer l'authentification
-- Le hook fournit `isAuthenticated`, `user`, `login()`, `logout()`, et `isLoading`
-- Plus besoin de gérer manuellement les tokens dans les composants
-- Exemple d'utilisation :
-
+### Utilisation dans les composants
 ```typescript
 const { isAuthenticated, user, login, logout, isLoading } = useAuth();
 
-// Connexion
 const handleLogin = async () => {
     const result = await login(email, password);
     if (result.isRight()) {
-        // Connexion réussie
         navigate('/dashboard');
     } else {
-        // Erreur
         setError(result.value.message);
     }
 };
 ```
 
-### Performance
+### Routes protegees -- PrivateRoute
+`src/core/components/PrivateRoute.tsx` -- Verifie `isAuthenticated` via `authStore`. Redirige vers `/login` avec preservation de l'URL d'origine.
 
-- Utiliser `PaginatedArray` pour les listes volumineuses
-- Invalider les listes (set to `null`) après modifications pour forcer le rechargement
-- Éviter les re-renders inutiles avec `React.memo` si nécessaire
+```typescript
+<Route path="/users" element={
+    <PrivateRoute><UsersPage /></PrivateRoute>
+} />
+```
+
+### ErrorBoundary
+`src/core/components/ErrorBoundary.tsx` -- Capture les erreurs React runtime. Enveloppe le `<Router>` dans `routes.tsx`.
+
+### Pourquoi pas de token dans les DataSources ?
+L'**AxiosInterceptor** :
+1. Intercepte chaque requete -> ajoute `Authorization: Bearer <token>`
+2. Si 401 -> refresh automatique du token
+3. Si refresh echoue -> logout + redirection `/login`
+4. Les requetes concurrentes sont mises en queue pendant le refresh
 
 ---
 
-## 🔍 Debugging
+## Patterns Zustand
 
-### Logs utiles
-
+### Structure type d'un state
 ```typescript
-// Dans le DataSource
-console.log("Calling API:", endpoint);
-console.log("Response:", response.data);
-
-// Dans le Repository
-console.log("Repository: Calling UseCase with:", params);
-
-// Dans le Redux Provider
-console.log("Provider: Result from UseCase:", result);
-
-// Dans le Composant
-console.log("Component: Current state:", { loading, error, data });
+interface FeatureState {
+    loading: boolean;
+    dialogLoading: boolean;        // Pour les modals
+    error: string | null;
+    success: string | null;
+    items: PaginatedArray<Entity> | null;
+    currentItem: Entity | null;
+}
 ```
+
+### Pattern Either dans les actions
+```typescript
+// TOUJOURS ce pattern dans les actions Zustand :
+actionName: async (params) => {
+    set({ loading: true, error: null }, false, 'feature/action/pending');
+    const result = await useCase.actionName(params);
+
+    if (result.isLeft()) {
+        set({ loading: false, error: result.value.message }, false, 'feature/action/rejected');
+    } else {
+        set({ loading: false, data: result.value }, false, 'feature/action/fulfilled');
+    }
+},
+```
+
+### Invalidation apres mutation
+```typescript
+// Apres create/update/delete, invalider la liste :
+set({ success: "Cree avec succes !", items: null });
+// Puis dans le composant :
+await createItem(data);
+getItems({ page: currentPage });  // Rechargement
+```
+
+### Acceder au store hors React
+```typescript
+// Dans init.ts ou services :
+useAuthStore.getState().checkAuth();
+```
+
+---
+
+## Gestion d'erreurs
+
+### Pattern Either -- resume
+| Methode | Signification |
+|---------|---------------|
+| `right(data)` | Succes |
+| `left(new AppError(...))` | Erreur |
+| `result.isLeft()` | Tester si erreur |
+| `result.isRight()` | Tester si succes |
+| `result.value` | Acceder a la donnee (apres test) |
+
+### Ou utiliser Either ?
+| Couche | Utilise Either ? | Comment |
+|--------|-----------------|---------|
+| DataSource | Non | `throw new AppError(...)` |
+| Repository | Oui | `try/catch` -> `right()`/`left()` |
+| UseCase | Oui | Validation -> `left()`, sinon delegue au repo |
+| Store | Consomme | `if (result.isLeft()) set({ error })` |
+
+### AppError
+```typescript
+new AppError(message: string, code: string, details?: any)
+// Codes courants : "000" (inconnu), "001" (API), "400" (validation), "401" (auth), "VALIDATION_ERROR" (Zod)
+```
+
+---
+
+## Notes importantes
+
+### Messages utilisateur
+- **Success** : Messages clairs et positifs -- `"Utilisateur cree avec succes !"`
+- **Error** : Messages comprehensibles -- `"Une erreur est survenue lors de la creation"`
+- Toujours auto-clear apres 3 secondes via `setTimeout`
+- Jamais d'emojis dans les messages
+
+### Utilitaires partages
+`src/core/utils/validators.ts` -- Fonctions de validation reutilisables (`isValidEmail`, `isNotEmpty`). Toujours importer depuis ce fichier au lieu de dupliquer dans les UseCases/Services.
+
+### Types nullables
+```typescript
+// BON
+phone: string | null;
+const phone = json.phone ?? null;
+
+// MAUVAIS -- || convertit '' en null
+const phone = json.phone || null;
+```
+
+### Performance
+- `PaginatedArray<T>` pour les listes volumineuses
+- Invalider les listes (`set items: null`) apres mutations
+- `React.memo` si re-renders inutiles detectes
+
+### Initialisation de l'app
+```typescript
+// main.tsx -- appeler initializeApp() avant le render
+import { initializeApp } from './core/init';
+initializeApp();
+```
+
+`initializeApp()` configure l'AxiosInterceptor et verifie l'auth au demarrage.
+
+---
+
+## Debugging
+
+### Zustand DevTools
+Les stores utilisent le middleware `devtools` avec des action names explicites :
+`'users/getUsers/pending'`, `'users/getUsers/fulfilled'`, `'users/getUsers/rejected'`
 
 ### Erreurs courantes
 
-1. **"Cannot read property 'map' of null"**
-   - Cause: Liste non chargée
-   - Solution: Vérifier le loading state avant d'afficher `data?.map()`
-
-2. **"Token is null"**
-   - Cause: Utilisateur non authentifié ou session expirée
-   - Solution: Utiliser le hook `useAuth()` et vérifier `isAuthenticated`
-
-3. **"AuthService token errors"**
-   - Cause: Token expiré ou service d'authentification non initialisé
-   - Solution: Appeler `initializeApp()` au démarrage et utiliser `getValidToken()`
-
-3. **"Type 'Either<...>' is not assignable to type '...'"**
-   - Cause: Oubli de mapper Either vers valeur
-   - Solution: Utiliser `.mapRight()` et `.mapLeft()`
-
-4. **"Reducer returned undefined"**
-   - Cause: Slice non enregistré dans le store
-   - Solution: Ajouter le reducer dans `configureStore()`
-
-5. **"Données [entity] invalides" (Erreurs Zod)**
-   - Cause: Données d'API qui ne respectent pas le schéma Zod
-   - Solution: Vérifier le schéma Zod et/ou corriger les données API
-   - Debug: Utiliser `error.details.zodErrors` pour voir les détails
+| Erreur | Cause | Solution |
+|--------|-------|----------|
+| `Cannot read property 'map' of null` | Liste non chargee | Utiliser `data?.map()` |
+| Token null / 401 | Session expiree | `useAuth()` + verifier `isAuthenticated` |
+| `Donnees invalides` (Zod) | API renvoie des donnees hors schema | Verifier le schema Zod, inspecter `error.details.zodErrors` |
+| `Either<...> not assignable` | Oubli de consommer l'Either | Utiliser `if (result.isLeft())` |
 
 ---
 
-**Version**: 2.0  
-**Dernière mise à jour**: Octobre 2025 - Ajout validation Zod, amélioration authentification avec AuthService, TokenService et useAuth hook  
-**Mainteneur**: Équipe Tambatra
+## Checklist nouvelle feature
+
+- [ ] **Entity** : `domain/entities/[Entity].ts`
+- [ ] **DTO + Zod** : `data/DTO/[Entity]Model.ts`
+- [ ] **Domain Types** : `domain/types/[Feature]DomainTypes.ts`
+- [ ] **Repository Interface** : `domain/repositories/I[Feature]Repository.ts`
+- [ ] **UseCase Interface** : `domain/usecases/I[Feature]UseCase.ts`
+- [ ] **UseCase Impl** : `domain/usecases/[Feature]UseCase.ts`
+- [ ] **DataSource** : `data/datasources/[Feature]DataSource.ts`
+- [ ] **Repository Impl** : `data/repositories/[Feature]Repository.ts`
+- [ ] **Zustand Store** : `presentation/store/[feature]Store.ts`
+- [ ] **Page/Composant** : `presentation/pages/` ou `presentation/components/`
+
+---
+
+**Version** : 6.0
+**Derniere mise a jour** : Juillet 2025 -- Exemples alignes sur le code reel, suppression redondances, ajout Domain Types + DataSource CRUD complet
+**Mainteneur** : Equipe Tambatra

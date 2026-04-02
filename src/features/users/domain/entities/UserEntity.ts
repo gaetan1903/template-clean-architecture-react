@@ -1,16 +1,20 @@
-export class UserEntity {
-    constructor(
-        public id: string,
-        public firstName: string,
-        public lastName: string,
-        public email: string,
-        public phone: string | null,
-        public role: string,
-        public createdAt: Date,
-        public updatedAt: Date
-    ) {}
-
-    get fullName(): string {
-        return `${this.firstName} ${this.lastName}`;
-    }
+/**
+ * Entité métier User — interface (compatible Zustand serialization)
+ */
+export interface UserEntity {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;
+    role: string;
+    createdAt: Date;
+    updatedAt: Date;
 }
+
+/**
+ * Retourne le nom complet d'un utilisateur
+ */
+export const getFullName = (user: UserEntity): string => {
+    return `${user.firstName} ${user.lastName}`;
+};

@@ -12,18 +12,17 @@ export interface ITokenService {
     validateToken(token: string): TokenValidationResult;
     shouldRefreshToken(): boolean;
     clearTokens(): void;
-    getTokenTimeRemaining(token: string): number;
 }
 
 export class TokenService implements ITokenService {
     private static instance: TokenService;
     private readonly ACCESS_TOKEN_KEY = 'access_token';
     private readonly REFRESH_TOKEN_KEY = 'refresh_token';
-    
+
     // Buffer de 5 minutes avant expiration pour refresh automatique
     private readonly REFRESH_BUFFER_MINUTES = 5;
 
-    private constructor() {}
+    private constructor() { }
 
     public static getInstance(): TokenService {
         if (!TokenService.instance) {
@@ -38,18 +37,18 @@ export class TokenService implements ITokenService {
     public getAccessToken(): Either<AppError, string> {
         try {
             const token = this.getStoredToken(this.ACCESS_TOKEN_KEY);
-            
+
             if (!token) {
                 return left(new AppError("Token d'accès non trouvé", "401", "access_token_not_found"));
             }
 
             const validation = this.validateToken(token);
-            
+
             if (!validation.isValid) {
                 this.clearTokens();
                 return left(new AppError(
-                    validation.error || "Token d'accès invalide", 
-                    "401", 
+                    validation.error || "Token d'accès invalide",
+                    "401",
                     "access_token_invalid"
                 ));
             }
@@ -71,7 +70,7 @@ export class TokenService implements ITokenService {
     public getRefreshToken(): Either<AppError, string> {
         try {
             const token = this.getStoredToken(this.REFRESH_TOKEN_KEY);
-            
+
             if (!token) {
                 return left(new AppError("Token de refresh non trouvé", "401", "refresh_token_not_found"));
             }
@@ -97,8 +96,8 @@ export class TokenService implements ITokenService {
             const accessValidation = this.validateToken(accessToken);
             if (!accessValidation.isValid) {
                 return left(new AppError(
-                    "Token d'accès invalide lors du stockage", 
-                    "400", 
+                    "Token d'accès invalide lors du stockage",
+                    "400",
                     "invalid_access_token_format"
                 ));
             }
@@ -106,8 +105,8 @@ export class TokenService implements ITokenService {
             // Validation du token de refresh
             if (!this.isTokenValid(refreshToken)) {
                 return left(new AppError(
-                    "Token de refresh invalide lors du stockage", 
-                    "400", 
+                    "Token de refresh invalide lors du stockage",
+                    "400",
                     "invalid_refresh_token_format"
                 ));
             }
@@ -115,7 +114,7 @@ export class TokenService implements ITokenService {
             // Stockage sécurisé
             this.setStoredToken(this.ACCESS_TOKEN_KEY, accessToken);
             this.setStoredToken(this.REFRESH_TOKEN_KEY, refreshToken);
-            
+
             return right(true);
         } catch (error) {
             return left(new AppError("Erreur lors du stockage des tokens", "500", error));
@@ -149,7 +148,7 @@ export class TokenService implements ITokenService {
             if (!payload || !payload.exp) {
                 return true;
             }
-            
+
             const currentTime = Math.floor(Date.now() / 1000);
             return payload.exp < currentTime;
         } catch {
@@ -203,7 +202,7 @@ export class TokenService implements ITokenService {
             }
 
             const isExpired = this.isTokenExpired(token);
-            
+
             return {
                 isValid: true,
                 isExpired,
@@ -253,7 +252,7 @@ export class TokenService implements ITokenService {
 
             const currentTime = Math.floor(Date.now() / 1000);
             const timeRemaining = payload.exp - currentTime;
-            
+
             return Math.max(0, timeRemaining);
         } catch {
             return 0;
@@ -286,7 +285,7 @@ export class TokenService implements ITokenService {
             // Correction du padding base64 si nécessaire
             const correctedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
             const decoded = atob(correctedPayload);
-            
+
             return JSON.parse(decoded) as TokenPayload;
         } catch {
             return null;

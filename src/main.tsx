@@ -1,14 +1,14 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { Provider } from 'react-redux'
-import { store } from './core/store'
+import { initializeApp } from './core/init'
 import AppRoutes from './core/routes'
 import './core/index.scss'
 
+// Initialiser les services de base (intercepteurs Axios, vérification auth)
+initializeApp();
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <Provider store={store}>
-      <AppRoutes />
-    </Provider>
+    <AppRoutes />
   </React.StrictMode>,
 )

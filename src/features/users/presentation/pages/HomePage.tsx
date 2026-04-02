@@ -18,7 +18,7 @@ const HomePage: React.FC = () => {
                 }}
             >
                 <Typography variant="h2" component="h1" gutterBottom>
-                    🏗️ Clean Architecture React Template
+                    Clean Architecture React Template
                 </Typography>
                 <Typography variant="h5" component="h2" gutterBottom sx={{ mt: 2, mb: 4, color: 'text.secondary' }}>
                     Un template complet pour créer des applications React + TypeScript
@@ -51,19 +51,19 @@ const HomePage: React.FC = () => {
                     </Typography>
                     <Box sx={{ mt: 2, display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
                         <Box>
-                            <Typography variant="body1">⚛️ React 18 + TypeScript</Typography>
+                            <Typography variant="body1">React 18 + TypeScript</Typography>
                         </Box>
                         <Box>
-                            <Typography variant="body1">🏛️ Clean Architecture</Typography>
+                            <Typography variant="body1">Clean Architecture</Typography>
                         </Box>
                         <Box>
-                            <Typography variant="body1">🔄 Redux Toolkit</Typography>
+                            <Typography variant="body1">Zustand</Typography>
                         </Box>
                         <Box>
-                            <Typography variant="body1">🎨 Material-UI v6</Typography>
+                            <Typography variant="body1">Material-UI v6</Typography>
                         </Box>
                         <Box>
-                            <Typography variant="body1">✅ Either Monad</Typography>
+                            <Typography variant="body1">Either Monad</Typography>
                         </Box>
                     </Box>
                 </Box>

@@ -14,15 +14,10 @@ const UserApiSchema = z.object({
     updated_at: z.string().datetime("Date de mise à jour invalide")
 });
 
-// Schéma pour la création d'utilisateur (sans id, dates auto-générées)
-const CreateUserApiSchema = z.object({
-    first_name: z.string().min(1, "Le prénom est requis").max(100, "Prénom trop long"),
-    last_name: z.string().min(1, "Le nom est requis").max(100, "Nom trop long"),
-    email: z.string().email("Format d'email invalide"),
-    phone: z.string().nullable().optional(),
-    role: z.enum(['ADMIN', 'USER', 'MODERATOR']),
-    password: z.string().min(6, "Mot de passe doit contenir au moins 6 caractères")
-});
+// Schéma pour la création d'utilisateur (dérivé du principal)
+const CreateUserApiSchema = UserApiSchema
+    .omit({ id: true, created_at: true, updated_at: true })
+    .extend({ password: z.string().min(6, "Mot de passe doit contenir au moins 6 caractères") });
 
 // Types TypeScript dérivés des schémas Zod
 export type UserApiType = z.infer<typeof UserApiSchema>;
@@ -37,25 +32,25 @@ export class UserModel {
         try {
             // Validation avec Zod
             const validatedData = UserApiSchema.parse(json);
-            
-            // Conversion vers Entity
-            return new UserEntity(
-                validatedData.id,
-                validatedData.first_name,
-                validatedData.last_name,
-                validatedData.email,
-                validatedData.phone ?? null,
-                validatedData.role,
-                new Date(validatedData.created_at),
-                new Date(validatedData.updated_at)
-            );
+
+            // Conversion vers Entity (objet plain, compatible Zustand)
+            return {
+                id: validatedData.id,
+                firstName: validatedData.first_name,
+                lastName: validatedData.last_name,
+                email: validatedData.email,
+                phone: validatedData.phone ?? null,
+                role: validatedData.role,
+                createdAt: new Date(validatedData.created_at),
+                updatedAt: new Date(validatedData.updated_at),
+            };
         } catch (error) {
             if (error instanceof z.ZodError) {
                 // Formatting des erreurs Zod en AppError
-                const errorMessage = error.issues.map((err: z.ZodIssue) => 
+                const errorMessage = error.issues.map((err: z.ZodIssue) =>
                     `${err.path.join('.')}: ${err.message}`
                 ).join(', ');
-                
+
                 throw new AppError(
                     `Données utilisateur invalides: ${errorMessage}`,
                     "VALIDATION_ERROR",
@@ -93,10 +88,10 @@ export class UserModel {
             return CreateUserApiSchema.parse(data);
         } catch (error) {
             if (error instanceof z.ZodError) {
-                const errorMessage = error.issues.map((err: z.ZodIssue) => 
+                const errorMessage = error.issues.map((err: z.ZodIssue) =>
                     `${err.path.join('.')}: ${err.message}`
                 ).join(', ');
-                
+
                 throw new AppError(
                     `Données de création invalides: ${errorMessage}`,
                     "VALIDATION_ERROR",
@@ -112,15 +107,15 @@ export class UserModel {
      */
     static validateUpdateData(data: unknown): Partial<CreateUserApiType> {
         const UpdateUserApiSchema = CreateUserApiSchema.partial();
-        
+
         try {
             return UpdateUserApiSchema.parse(data);
         } catch (error) {
             if (error instanceof z.ZodError) {
-                const errorMessage = error.issues.map((err: z.ZodIssue) => 
+                const errorMessage = error.issues.map((err: z.ZodIssue) =>
                     `${err.path.join('.')}: ${err.message}`
                 ).join(', ');
-                
+
                 throw new AppError(
                     `Données de mise à jour invalides: ${errorMessage}`,
                     "VALIDATION_ERROR",

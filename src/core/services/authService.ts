@@ -3,6 +3,7 @@ import { AppError } from "../types/AppError";
 import { AuthTokens, LoginCredentials, TokenPayload } from "../types/AuthTypes";
 import TokenService, { ITokenService } from "./tokenService";
 import AxiosService from "./axiosService";
+import { isValidEmail } from "../utils/validators";
 
 export interface IAuthService {
     login(credentials: LoginCredentials): Promise<Either<AppError, AuthTokens>>;
@@ -18,15 +19,15 @@ export class AuthService implements IAuthService {
     private static instance: AuthService;
     private tokenService: ITokenService = TokenService.getInstance();
     private axiosService = AxiosService.getInstance();
-    
+
     // Prévenir les appels multiples simultanés de refresh
     private refreshPromise: Promise<Either<AppError, AuthTokens>> | null = null;
-    
+
     // Cache pour éviter les vérifications trop fréquentes
     private lastTokenCheck: number = 0;
     private readonly TOKEN_CHECK_INTERVAL = 30000; // 30 secondes
 
-    private constructor() {}
+    private constructor() { }
 
     public static getInstance(): AuthService {
         if (!AuthService.instance) {
@@ -46,7 +47,7 @@ export class AuthService implements IAuthService {
             }
 
             // Validation du format email
-            if (!this.isValidEmail(credentials.email)) {
+            if (!isValidEmail(credentials.email)) {
                 return left(new AppError("Format d'email invalide", "400", "invalid_email_format"));
             }
 
@@ -55,11 +56,11 @@ export class AuthService implements IAuthService {
                 email: credentials.email.trim().toLowerCase(),
                 password: credentials.password
             });
-            
+
             if (!response.data || !response.data.accessToken || !response.data.refreshToken) {
                 return left(new AppError(
-                    "Réponse d'authentification invalide", 
-                    "400", 
+                    "Réponse d'authentification invalide",
+                    "400",
                     "invalid_auth_response"
                 ));
             }
@@ -97,7 +98,7 @@ export class AuthService implements IAuthService {
         try {
             // Récupération du refresh token pour l'invalidation côté serveur
             const refreshTokenResult = this.tokenService.getRefreshToken();
-            
+
             if (refreshTokenResult.isRight()) {
                 try {
                     // Tentative d'invalidation côté serveur
@@ -121,7 +122,7 @@ export class AuthService implements IAuthService {
             this.tokenService.clearTokens();
             this.refreshPromise = null;
             this.lastTokenCheck = 0;
-            
+
             return left(new AppError("Erreur lors de la déconnexion", "500", error));
         }
     }
@@ -138,7 +139,7 @@ export class AuthService implements IAuthService {
         this.refreshPromise = this.performRefresh();
         const result = await this.refreshPromise;
         this.refreshPromise = null;
-        
+
         return result;
     }
 
@@ -155,8 +156,8 @@ export class AuthService implements IAuthService {
             const refreshToken = refreshTokenResult.value;
 
             // Appel API de refresh
-            const response = await this.axiosService.post('/auth/refresh', { 
-                refreshToken 
+            const response = await this.axiosService.post('/auth/refresh', {
+                refreshToken
             });
 
             if (!response.data || !response.data.accessToken) {
@@ -183,11 +184,11 @@ export class AuthService implements IAuthService {
         } catch (error: any) {
             // En cas d'erreur, nettoyer les tokens
             this.tokenService.clearTokens();
-            
+
             if (error.response?.status === 401) {
                 return left(new AppError("Session expirée, veuillez vous reconnecter", "401", "refresh_expired"));
             }
-            
+
             return left(new AppError("Erreur lors du renouvellement du token", "500", error));
         }
     }
@@ -215,7 +216,7 @@ export class AuthService implements IAuthService {
         // 3. Le token est invalide/expiré, essayer le refresh si possible
         if (this.tokenService.shouldRefreshToken()) {
             const refreshResult = await this.refreshToken();
-            
+
             if (refreshResult.isRight()) {
                 return right(refreshResult.value.accessToken);
             }
@@ -271,13 +272,6 @@ export class AuthService implements IAuthService {
         }
     }
 
-    /**
-     * Validation du format email
-     */
-    private isValidEmail(email: string): boolean {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
 }
 
 export default AuthService;

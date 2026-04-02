@@ -2,20 +2,23 @@ import { Either, left, right } from "@sweet-monads/either";
 import { AppError } from "../../../../core/types/AppError";
 import { IUsersDataSource } from "../datasources/UsersDataSource";
 import { IUsersRepository } from "../../domain/repositories/IUsersRepository";
-import AuthService from "../../../../core/services/authService";
 import { UserEntity } from "../../domain/entities/UserEntity";
 import { PaginatedArray } from "../../../../core/types/PaginatedArray";
-import { 
-    GetUsersFiltersParams, 
-    CreateUserDataParams, 
-    UpdateUserDataParams, 
-    GetUserByIdParams, 
-    DeleteUserParams 
+import {
+    GetUsersFiltersParams,
+    CreateUserDataParams,
+    UpdateUserDataParams,
+    GetUserByIdParams,
+    DeleteUserParams
 } from "../../domain/types/UsersDomainTypes";
 
+/**
+ * Implémentation du repository Users.
+ * Note : L'authentification (token Bearer) est gérée automatiquement
+ * par AxiosInterceptor. Le repository n'a pas à s'en soucier.
+ */
 export class UsersRepository implements IUsersRepository {
     private dataSource: IUsersDataSource;
-    private authService = AuthService.getInstance();
 
     constructor(dataSource: IUsersDataSource) {
         this.dataSource = dataSource;
@@ -23,19 +26,9 @@ export class UsersRepository implements IUsersRepository {
 
     async getUsers(filters: GetUsersFiltersParams): Promise<Either<AppError, PaginatedArray<UserEntity>>> {
         try {
-            // Récupération du token via AuthService
-            const tokenResult = await this.authService.getValidToken();
-            if (tokenResult.isLeft()) {
-                return left(tokenResult.value);
-            }
-
-            // Appel direct au DataSource (mapping identique pour l'instant)
-            const users = await this.dataSource.getUsers(tokenResult.value, filters);
-
-            // Succès: retourne Right
+            const users = await this.dataSource.getUsers(filters);
             return right(users);
         } catch (error) {
-            // Erreur: retourne Left
             if (error instanceof AppError) {
                 return left(error);
             }
@@ -45,13 +38,7 @@ export class UsersRepository implements IUsersRepository {
 
     async getUserById(params: GetUserByIdParams): Promise<Either<AppError, UserEntity>> {
         try {
-            const tokenResult = await this.authService.getValidToken();
-            if (tokenResult.isLeft()) {
-                return left(tokenResult.value);
-            }
-
-            // Appel direct au DataSource (mapping identique)
-            const user = await this.dataSource.getUserById(tokenResult.value, params);
+            const user = await this.dataSource.getUserById(params);
             return right(user);
         } catch (error) {
             if (error instanceof AppError) {
@@ -63,13 +50,7 @@ export class UsersRepository implements IUsersRepository {
 
     async createUser(data: CreateUserDataParams): Promise<Either<AppError, boolean>> {
         try {
-            const tokenResult = await this.authService.getValidToken();
-            if (tokenResult.isLeft()) {
-                return left(tokenResult.value);
-            }
-
-            // Appel direct au DataSource (mapping identique)
-            const result = await this.dataSource.createUser(tokenResult.value, data);
+            const result = await this.dataSource.createUser(data);
             return right(result);
         } catch (error) {
             if (error instanceof AppError) {
@@ -81,13 +62,7 @@ export class UsersRepository implements IUsersRepository {
 
     async updateUser(id: string, data: UpdateUserDataParams): Promise<Either<AppError, boolean>> {
         try {
-            const tokenResult = await this.authService.getValidToken();
-            if (tokenResult.isLeft()) {
-                return left(tokenResult.value);
-            }
-
-            // Appel direct au DataSource (mapping identique)
-            const result = await this.dataSource.updateUser(tokenResult.value, id, data);
+            const result = await this.dataSource.updateUser(id, data);
             return right(result);
         } catch (error) {
             if (error instanceof AppError) {
@@ -99,13 +74,7 @@ export class UsersRepository implements IUsersRepository {
 
     async deleteUser(params: DeleteUserParams): Promise<Either<AppError, boolean>> {
         try {
-            const tokenResult = await this.authService.getValidToken();
-            if (tokenResult.isLeft()) {
-                return left(tokenResult.value);
-            }
-
-            // Appel direct au DataSource (mapping identique)
-            const result = await this.dataSource.deleteUser(tokenResult.value, params);
+            const result = await this.dataSource.deleteUser(params);
             return right(result);
         } catch (error) {
             if (error instanceof AppError) {

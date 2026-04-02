@@ -4,13 +4,14 @@ import { IUsersRepository } from "../repositories/IUsersRepository";
 import { IUsersUseCase } from "./IUsersUseCase";
 import { UserEntity } from "../entities/UserEntity";
 import { PaginatedArray } from "../../../../core/types/PaginatedArray";
-import { 
-    GetUsersFiltersParams, 
-    CreateUserDataParams, 
-    UpdateUserDataParams, 
-    GetUserByIdParams, 
-    DeleteUserParams 
+import {
+    GetUsersFiltersParams,
+    CreateUserDataParams,
+    UpdateUserDataParams,
+    GetUserByIdParams,
+    DeleteUserParams
 } from "../types/UsersDomainTypes";
+import { isValidEmail } from "../../../../core/utils/validators";
 
 export class UsersUseCase implements IUsersUseCase {
     private repository: IUsersRepository;
@@ -52,7 +53,7 @@ export class UsersUseCase implements IUsersUseCase {
             return left(new AppError("Le nom est requis", "400", "validation_error"));
         }
 
-        if (!data.email || !this.isValidEmail(data.email)) {
+        if (!data.email || !isValidEmail(data.email)) {
             return left(new AppError("L'email est invalide", "400", "validation_error"));
         }
 
@@ -69,7 +70,7 @@ export class UsersUseCase implements IUsersUseCase {
             return left(new AppError("L'ID utilisateur est requis", "400", "validation_error"));
         }
 
-        if (data.email && !this.isValidEmail(data.email)) {
+        if (data.email && !isValidEmail(data.email)) {
             return left(new AppError("L'email est invalide", "400", "validation_error"));
         }
 
@@ -87,10 +88,5 @@ export class UsersUseCase implements IUsersUseCase {
         }
 
         return await this.repository.deleteUser(params);
-    }
-
-    private isValidEmail(email: string): boolean {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
     }
 }

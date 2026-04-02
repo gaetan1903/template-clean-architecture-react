@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import {
     Container,
     Typography,
@@ -13,41 +12,37 @@ import {
     TextField,
     Pagination
 } from '@mui/material';
-import { RootState, AppDispatch } from '../../../../core/store';
-import { getUsersProvider } from '../redux/usersProvider';
-import { clearSuccess, clearError } from '../redux/usersSlice';
+import { useUsersStore } from '../store/usersStore';
+import { getFullName } from '../../domain/entities/UserEntity';
 
 const UsersPage: React.FC = () => {
-    const dispatch = useDispatch<AppDispatch>();
-    const { users, loading, error, success } = useSelector(
-        (state: RootState) => state.users
-    );
+    const { users, loading, error, success, getUsers, clearSuccess, clearError } = useUsersStore();
 
     const [currentPage, setCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
 
     // Chargement initial
     useEffect(() => {
-        dispatch(getUsersProvider({ page: currentPage, search: searchTerm }));
-    }, [currentPage, dispatch]);
+        getUsers({ page: currentPage, search: searchTerm });
+    }, [currentPage, getUsers]);
 
     // Gestion des messages de succès
     useEffect(() => {
         if (success) {
-            setTimeout(() => dispatch(clearSuccess()), 3000);
+            setTimeout(() => clearSuccess(), 3000);
         }
-    }, [success, dispatch]);
+    }, [success, clearSuccess]);
 
     // Gestion des erreurs
     useEffect(() => {
         if (error) {
-            setTimeout(() => dispatch(clearError()), 3000);
+            setTimeout(() => clearError(), 3000);
         }
-    }, [error, dispatch]);
+    }, [error, clearError]);
 
     const handleSearch = () => {
         setCurrentPage(1);
-        dispatch(getUsersProvider({ page: 1, search: searchTerm }));
+        getUsers({ page: 1, search: searchTerm });
     };
 
     const handlePageChange = (_: React.ChangeEvent<unknown>, page: number) => {
@@ -85,7 +80,7 @@ const UsersPage: React.FC = () => {
                     variant="outlined"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
                 <Button
                     variant="contained"
@@ -112,7 +107,7 @@ const UsersPage: React.FC = () => {
                                 <Card>
                                     <CardContent>
                                         <Typography variant="h6" gutterBottom>
-                                            {user.fullName}
+                                            {getFullName(user)}
                                         </Typography>
                                         <Typography variant="body2" color="text.secondary" gutterBottom>
                                             {user.email}

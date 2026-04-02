@@ -15,7 +15,7 @@ export class AxiosInterceptor {
     private failedQueue: QueueItem[] = [];
     private isInitialized = false;
 
-    private constructor() {}
+    private constructor() { }
 
     public static getInstance(): AxiosInterceptor {
         if (!AxiosInterceptor.instance) {
@@ -44,7 +44,7 @@ export class AxiosInterceptor {
 
                 try {
                     const tokenResult = await this.authService.getValidToken();
-                    
+
                     if (tokenResult.isRight()) {
                         config.headers = config.headers || {};
                         config.headers.Authorization = `Bearer ${tokenResult.value}`;
@@ -52,7 +52,7 @@ export class AxiosInterceptor {
                 } catch (error) {
                     console.warn('Impossible de récupérer un token valide pour la requête:', error);
                 }
-                
+
                 return config;
             },
             (error: AxiosError) => {
@@ -103,18 +103,18 @@ export class AxiosInterceptor {
 
                 try {
                     const refreshResult = await this.authService.refreshToken();
-                    
+
                     if (refreshResult.isRight()) {
                         const newToken = refreshResult.value.accessToken;
-                        
+
                         // Traiter la queue des requêtes en attente
                         this.processQueue(null, newToken);
-                        
+
                         // Retry la requête originale avec le nouveau token
                         if (originalRequest.headers) {
                             originalRequest.headers.Authorization = `Bearer ${newToken}`;
                         }
-                        
+
                         return axiosInstance(originalRequest);
                     } else {
                         // Le refresh a échoué
@@ -134,7 +134,6 @@ export class AxiosInterceptor {
         );
 
         this.isInitialized = true;
-        console.debug('AxiosInterceptor initialisé avec succès');
     }
 
     /**
@@ -148,7 +147,7 @@ export class AxiosInterceptor {
                 resolve(token);
             }
         });
-        
+
         this.failedQueue = [];
     }
 
@@ -167,7 +166,7 @@ export class AxiosInterceptor {
         try {
             // Déconnecter l'utilisateur
             await this.authService.logout();
-            
+
             // Redirection vers la page de login
             // Éviter la redirection si on est déjà sur la page de login
             if (!window.location.pathname.includes('/login')) {
@@ -187,17 +186,15 @@ export class AxiosInterceptor {
      */
     public destroy(): void {
         const axiosInstance = this.axiosService.getAxiosInstance();
-        
+
         // Supprimer tous les intercepteurs
         axiosInstance.interceptors.request.clear();
         axiosInstance.interceptors.response.clear();
-        
+
         // Reset des états
         this.isRefreshing = false;
         this.failedQueue = [];
         this.isInitialized = false;
-        
-        console.debug('AxiosInterceptor détruit');
     }
 
     /**
