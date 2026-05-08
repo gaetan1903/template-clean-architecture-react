@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { right, left } from '@sweet-monads/either';
 import { UsersUseCase } from './UsersUseCase';
-import { IUsersRepository } from '../../repositories/IUsersRepository';
 import { AppError } from '@core/types/AppError';
 import { PaginatedArray } from '@core/types/PaginatedArray';
-import { UserEntity } from '../../entities/UserEntity';
+import { UserEntity } from '../entities/UserEntity';
+import { IUsersRepository } from '../repositories/IUsersRepository';
 
 // --- Helpers ---
 
