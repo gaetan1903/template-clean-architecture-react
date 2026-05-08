@@ -97,10 +97,7 @@ export class UsersDataSource implements IUsersDataSource {
 
     async createUser(data: CreateUserDataParams): Promise<boolean> {
         try {
-            // Validation des données avec Zod avant envoi à l'API
-            const validatedData = UserModel.validateCreateData(data);
-
-            const response = await this.axiosService.post('/api/users', validatedData);
+            const response = await this.axiosService.post('/api/users', data);
             return response && response.status === 201;
         } catch (error) {
             // Gestion spécifique des erreurs de validation Zod
@@ -122,10 +119,7 @@ export class UsersDataSource implements IUsersDataSource {
 
     async updateUser(id: string, data: UpdateUserDataParams): Promise<boolean> {
         try {
-            // Validation des données partielles avec Zod avant envoi à l'API
-            const validatedData = UserModel.validateUpdateData(data);
-
-            const response = await this.axiosService.put(`/api/users/${id}`, validatedData);
+            const response = await this.axiosService.put(`/api/users/${id}`, data);
             return response && response.status === 200;
         } catch (error) {
             // Gestion spécifique des erreurs de validation Zod

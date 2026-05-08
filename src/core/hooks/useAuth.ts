@@ -1,66 +1,61 @@
-import { useCallback, useMemo } from 'react';
 import { useAuthStore } from '../store/authStore';
-import { LoginCredentials } from '../types/AuthTypes';
 import { Either, left, right } from '@sweet-monads/either';
 import { AppError } from '../types/AppError';
+import { LoginCredentials } from '../types/AuthTypes';
 
 /**
  * Hook useAuth qui utilise Zustand pour la gestion de l'authentification.
- * Fournit un accès simplifié au state et aux actions d'authentification.
+ * Fournit un acces simplifie au state et aux actions d'authentification.
+ * Les actions Zustand sont stables (reference identique entre renders) — pas besoin de useCallback.
  */
 export const useAuth = () => {
-    const authState = useAuthStore();
+    // Selectionner les valeurs et actions individuellement
+    // pour eviter les re-renders inutiles
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const isLoading = useAuthStore((s) => s.isLoading);
+    const user = useAuthStore((s) => s.user);
+    const error = useAuthStore((s) => s.error);
+    const storeLogin = useAuthStore((s) => s.login);
+    const storeLogout = useAuthStore((s) => s.logout);
+    const storeCheckAuth = useAuthStore((s) => s.checkAuth);
+    const storeClearError = useAuthStore((s) => s.clearError);
 
-    // Actions wrappées avec Either pour compatibilité avec l'architecture
-    const login = useCallback(async (email: string, password: string): Promise<Either<AppError, boolean>> => {
+    // Wrapper login pour retourner Either (compatibilite architecture)
+    const login = async (email: string, password: string): Promise<Either<AppError, boolean>> => {
         try {
             const credentials: LoginCredentials = { email, password };
-            await authState.login(credentials);
+            await storeLogin(credentials);
 
-            // Vérifier le state après l'action
-            const { isAuthenticated, error } = useAuthStore.getState();
-            if (isAuthenticated) {
+            const { isAuthenticated: isAuth, error: err } = useAuthStore.getState();
+            if (isAuth) {
                 return right(true);
-            } else {
-                return left(new AppError(error || 'Erreur de connexion', '401', 'login_failed'));
             }
-        } catch (error) {
-            return left(new AppError('Erreur de connexion', '500', error));
+            return left(new AppError(err || 'Erreur de connexion', '401', 'login_failed'));
+        } catch (err) {
+            return left(new AppError('Erreur de connexion', '500', err));
         }
-    }, [authState]);
+    };
 
-    const logout = useCallback(async (): Promise<Either<AppError, boolean>> => {
+    // Wrapper logout pour retourner Either (compatibilite architecture)
+    const logout = async (): Promise<Either<AppError, boolean>> => {
         try {
-            await authState.logout();
+            await storeLogout();
             return right(true);
-        } catch (error) {
-            return left(new AppError('Erreur de déconnexion', '500', error));
+        } catch (err) {
+            return left(new AppError('Erreur de deconnexion', '500', err));
         }
-    }, [authState]);
-
-    const checkAuth = useCallback((): void => {
-        authState.checkAuth();
-    }, [authState]);
-
-    const clearError = useCallback(() => {
-        authState.clearError();
-    }, [authState]);
-
-    // Valeurs memoized pour éviter les re-renders inutiles
-    const memoizedValues = useMemo(() => ({
-        isAuthenticated: authState.isAuthenticated,
-        isLoading: authState.isLoading,
-        user: authState.user,
-        error: authState.error,
-    }), [authState.isAuthenticated, authState.isLoading, authState.user, authState.error]);
+    };
 
     return {
-        ...memoizedValues,
+        isAuthenticated,
+        isLoading,
+        user,
+        error,
         login,
         logout,
-        checkAuth,
-        refreshUser: checkAuth,
-        clearError
+        checkAuth: storeCheckAuth,
+        refreshUser: storeCheckAuth,
+        clearError: storeClearError,
     };
 };
 

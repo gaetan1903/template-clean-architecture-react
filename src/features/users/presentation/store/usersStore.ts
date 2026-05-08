@@ -62,6 +62,7 @@ export const useUsersStore = create<UsersState>()(
 
                 if (result.isLeft()) {
                     set({ loading: false, error: result.value.message }, false, 'users/getUsers/rejected');
+                    setTimeout(() => set({ error: null }, false, 'users/auto/clearError'), 3000);
                 } else {
                     set({ loading: false, users: result.value }, false, 'users/getUsers/fulfilled');
                 }
@@ -74,6 +75,7 @@ export const useUsersStore = create<UsersState>()(
 
                 if (result.isLeft()) {
                     set({ loading: false, error: result.value.message }, false, 'users/getUserById/rejected');
+                    setTimeout(() => set({ error: null }, false, 'users/auto/clearError'), 3000);
                 } else {
                     set({ loading: false, currentUser: result.value }, false, 'users/getUserById/fulfilled');
                 }
@@ -86,12 +88,14 @@ export const useUsersStore = create<UsersState>()(
 
                 if (result.isLeft()) {
                     set({ loading: false, error: result.value.message }, false, 'users/createUser/rejected');
+                    setTimeout(() => set({ error: null }, false, 'users/auto/clearError'), 3000);
                 } else {
                     set({
                         loading: false,
                         success: "Utilisateur créé avec succès !",
-                        users: null, // Invalider la liste pour forcer un rechargement
+                        users: null,
                     }, false, 'users/createUser/fulfilled');
+                    setTimeout(() => set({ success: null }, false, 'users/auto/clearSuccess'), 3000);
                 }
             },
 
@@ -102,12 +106,14 @@ export const useUsersStore = create<UsersState>()(
 
                 if (result.isLeft()) {
                     set({ loading: false, error: result.value.message }, false, 'users/updateUser/rejected');
+                    setTimeout(() => set({ error: null }, false, 'users/auto/clearError'), 3000);
                 } else {
                     set({
                         loading: false,
                         success: "Utilisateur mis à jour avec succès !",
                         users: null,
                     }, false, 'users/updateUser/fulfilled');
+                    setTimeout(() => set({ success: null }, false, 'users/auto/clearSuccess'), 3000);
                 }
             },
 
@@ -118,12 +124,14 @@ export const useUsersStore = create<UsersState>()(
 
                 if (result.isLeft()) {
                     set({ loading: false, error: result.value.message }, false, 'users/deleteUser/rejected');
+                    setTimeout(() => set({ error: null }, false, 'users/auto/clearError'), 3000);
                 } else {
                     set({
                         loading: false,
                         success: "Utilisateur supprimé avec succès !",
                         users: null,
                     }, false, 'users/deleteUser/fulfilled');
+                    setTimeout(() => set({ success: null }, false, 'users/auto/clearSuccess'), 3000);
                 }
             },
 

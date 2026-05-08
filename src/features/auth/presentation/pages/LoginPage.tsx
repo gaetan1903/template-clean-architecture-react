@@ -1,57 +1,36 @@
-import React, { useState } from 'react';
 import { Button, Card, CardContent, CardHeader, InputGroup, Spinner } from '@heroui/react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../../../core/hooks/useAuth';
+import { useLoginForm } from '../hooks/useLoginForm';
+import { useRedirectAfterAuth } from '../hooks/useRedirectAfterAuth';
 
-const LoginPage: React.FC = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const { login, isLoading, error: authError, clearError } = useAuth();
-
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [localError, setLocalError] = useState<string | null>(null);
-
-    // URL de redirection après login (préservée par PrivateRoute)
-    const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+const LoginPage = () => {
+    const { email, password, error, isLoading, setEmail, setPassword, submit } = useLoginForm();
+    const { redirectAfterLogin } = useRedirectAfterAuth();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLocalError(null);
-        clearError();
-
-        if (!email.trim() || !password.trim()) {
-            setLocalError('Email et mot de passe requis');
-            return;
+        const success = await submit();
+        if (success) {
+            redirectAfterLogin();
         }
-
-        const result = await login(email, password);
-
-        if (result.isRight()) {
-            navigate(from, { replace: true });
-        }
-        // Les erreurs sont gérées par le store via authError
     };
 
-    const displayError = localError || authError;
-
     return (
-        <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+        <div className="min-h-screen flex items-center justify-center page-bg">
             <Card className="w-full max-w-sm shadow-lg">
                 <CardHeader className="flex flex-col items-center pt-8 pb-2">
                     <h1 className="text-2xl font-bold">Connexion</h1>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4 pb-8">
-                    {displayError && (
+                    {error && (
                         <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-3 text-sm">
-                            {displayError}
+                            {error}
                         </div>
                     )}
 
                     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
                         <div className="flex flex-col gap-1">
                             <label className="text-sm font-medium" htmlFor="email">Email</label>
-                            <InputGroup variant="primary" fullWidth>
+                            <InputGroup fullWidth>
                                 <InputGroup.Input
                                     id="email"
                                     type="email"
@@ -66,7 +45,7 @@ const LoginPage: React.FC = () => {
 
                         <div className="flex flex-col gap-1">
                             <label className="text-sm font-medium" htmlFor="password">Mot de passe</label>
-                            <InputGroup variant="primary" fullWidth>
+                            <InputGroup fullWidth>
                                 <InputGroup.Input
                                     id="password"
                                     type="password"

@@ -556,6 +556,166 @@ L'**AxiosInterceptor** :
 
 ---
 
+## Hooks de presentation
+
+Les hooks de presentation encapsulent la logique d'etat locale des composants : formulaires, filtres, pagination, redirections. Ils vivent dans `presentation/hooks/` au sein de chaque feature.
+
+### Quand creer un hook de presentation ?
+- L'etat local depasse 2-3 variables liees (`search` + `role` + `status` = un seul hook filtres)
+- La logique de transformation / validation locale se repete
+- Une sequence d'actions (valider -> appeler store -> rediriger) merite d'etre isolee
+
+### Regles des hooks de presentation
+| Regle | Description |
+|-------|-------------|
+| **Appelle le store** | Les hooks de presentation appellent uniquement les actions Zustand, jamais les UseCases ou Repositories directement |
+| **Pas de logique metier** | La validation metier reste dans les UseCases ; les hooks ne font que de la validation UI (champs vides, format affichage) |
+| **Etat local uniquement** | L'etat partage entre plusieurs composants va dans le store Zustand, pas dans un hook |
+| **Retourne un objet typé** | Toujours typer le retour avec une interface `UseXxxReturn` |
+| **Prefixe `use`** | Respecter la convention React pour les hooks |
+
+### Structure type d'un hook de presentation
+
+```
+presentation/
++-- hooks/
+|   +-- useLoginForm.ts          # Etat formulaire + validation locale + appel store
+|   +-- useRedirectAfterAuth.ts  # Logique de redirection post-login
+|   +-- useUsersFilters.ts       # Etat des filtres (draft) + applyFilters/resetFilters
+|   +-- usePagination.ts         # Page courante + goToPage/goToNext/goToPrevious
+```
+
+### Exemple : hook de formulaire
+
+**Fichier** : `presentation/hooks/useLoginForm.ts`
+
+```typescript
+interface UseLoginFormReturn {
+    email: string;
+    password: string;
+    error: string | null;
+    isLoading: boolean;
+    setEmail: (v: string) => void;
+    setPassword: (v: string) => void;
+    submit: () => Promise<boolean>;
+    reset: () => void;
+}
+
+export const useLoginForm = (): UseLoginFormReturn => {
+    const { login, isLoading, error: authError, clearError } = useAuth();
+    const [form, setForm] = useState({ email: '', password: '', localError: null as string | null });
+
+    const setEmail = (v: string) => { clearError(); setForm((f) => ({ ...f, email: v, localError: null })); };
+    const setPassword = (v: string) => { clearError(); setForm((f) => ({ ...f, password: v, localError: null })); };
+
+    const submit = async (): Promise<boolean> => {
+        if (!form.email.trim() || !form.password.trim()) {
+            setForm((f) => ({ ...f, localError: 'Email et mot de passe requis' }));
+            return false;
+        }
+        const result = await login(form.email, form.password);
+        return result.isRight();
+    };
+
+    const reset = () => { clearError(); setForm({ email: '', password: '', localError: null }); };
+
+    // Priorite : erreur locale > erreur store
+    const error = form.localError ?? authError;
+
+    return { email: form.email, password: form.password, error, isLoading, setEmail, setPassword, submit, reset };
+};
+```
+
+### Exemple : hook de filtres
+
+**Fichier** : `presentation/hooks/useUsersFilters.ts`
+
+```typescript
+interface UseUsersFiltersReturn {
+    search: string;
+    role: string;
+    status: string;
+    setSearch: (value: string) => void;
+    setRole: (value: string) => void;
+    setStatus: (value: string) => void;
+    applyFilters: (page?: number) => void;  // Envoie les filtres au store
+    resetFilters: () => void;               // Vide les filtres + recharge page 1
+    activeFilters: GetUsersFiltersParams;   // Filtres appliques (sans champs vides)
+}
+
+export const useUsersFilters = (): UseUsersFiltersReturn => {
+    const getUsers = useUsersStore((s) => s.getUsers);
+    const [search, setSearch] = useState('');
+    const [role, setRole] = useState('');
+    const [status, setStatus] = useState('');
+
+    // N'inclure que les filtres non vides pour ne pas polluer l'URL / la requete
+    const activeFilters: GetUsersFiltersParams = {
+        ...(search.trim() && { search: search.trim() }),
+        ...(role && { role }),
+        ...(status && { status }),
+    };
+
+    const applyFilters = (page = 1) => getUsers({ page, ...activeFilters });
+
+    const resetFilters = () => {
+        setSearch(''); setRole(''); setStatus('');
+        getUsers({ page: 1 });
+    };
+
+    return { search, role, status, setSearch, setRole, setStatus, applyFilters, resetFilters, activeFilters };
+};
+```
+
+### Exemple : hook de pagination
+
+**Fichier** : `presentation/hooks/usePagination.ts`
+
+```typescript
+// Accepte les filtres actifs pour les conserver lors des changements de page
+export const usePagination = (activeFilters: GetUsersFiltersParams = {}): UsePaginationReturn => {
+    const users = useUsersStore((s) => s.users);
+    const getUsers = useUsersStore((s) => s.getUsers);
+    const [currentPage, setCurrentPage] = useState(1);
+    const totalPages = users?.totalPages ?? 1;
+
+    const goToPage = (page: number) => {
+        const clamped = Math.max(1, Math.min(page, totalPages));
+        setCurrentPage(clamped);
+        getUsers({ page: clamped, ...activeFilters });
+    };
+
+    return {
+        currentPage, totalPages,
+        goToPage,
+        goToNext: () => goToPage(currentPage + 1),
+        goToPrevious: () => goToPage(currentPage - 1),
+        isFirstPage: currentPage === 1,
+        isLastPage: currentPage >= totalPages,
+    };
+};
+```
+
+### Utilisation dans la page
+
+```typescript
+const UsersPage = () => {
+    const { users, loading, error, success, getUsers } = useUsersStore();
+
+    const { search, setSearch, applyFilters, resetFilters, activeFilters } = useUsersFilters();
+    const { currentPage, totalPages, goToPage, goToNext, goToPrevious, isFirstPage, isLastPage } =
+        usePagination(activeFilters);
+
+    // 1 seul useEffect pour le chargement initial
+    useEffect(() => { getUsers({ page: 1 }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleSearch = () => applyFilters(1);
+    // ...
+};
+```
+
+---
+
 ## Patterns Zustand
 
 ### Structure type d'un state
@@ -634,8 +794,39 @@ new AppError(message: string, code: string, details?: any)
 ### Messages utilisateur
 - **Success** : Messages clairs et positifs -- `"Utilisateur cree avec succes !"`
 - **Error** : Messages comprehensibles -- `"Une erreur est survenue lors de la creation"`
-- Toujours auto-clear apres 3 secondes via `setTimeout`
+- Toujours auto-clear apres 3 secondes -- via `setTimeout` dans le **store** (pas dans le composant)
 - Jamais d'emojis dans les messages
+
+### Regles core/services
+| Regle | Description |
+|-------|-------------|
+| **Singleton** | `private static instance` + `getInstance()` obligatoire pour les services partages |
+| **localStorage** | Uniquement dans `TokenService` (tokens auth) et `ThemeService` (theme). Nulle part ailleurs |
+| **Either obligatoire** | Toutes les methodes publiques faillibles retournent `Either<AppError, T>` |
+| **Instanciation au module level** | Les services utilises dans un store sont instancies une fois en dehors du `create()` (pas dans chaque action) |
+| **Pas de logique UI** | Seul `AxiosInterceptor` est autorise a toucher `window.location` |
+
+### Regles HeroUI v3
+- **Pas de prop `as`** sur `Button` -- HeroUI v3 ne supporte pas le polymorphisme via `as`. Utiliser un `<a>` natif stylie pour les liens externes
+- **Import CSS** : `@import "@heroui/styles/css"` (NON `@heroui/styles/dist/index.css`)
+- **Pas de `HeroUIProvider`** requis en v3
+- **Dark mode** via classe `.dark` sur `<html>` -- gere par `ThemeService` + `themeStore`
+- **Liens externes** : `<a href="..." target="_blank" rel="noopener noreferrer" className="...">` au lieu de `<Button as="a">`
+
+### Regles hooks Zustand
+- **Selectionner individuellement** les valeurs et actions : `useStore((s) => s.value)` -- evite les re-renders inutiles
+- **Ne pas** faire `const state = useStore()` -- retourne un nouvel objet a chaque render
+- **Les actions Zustand sont stables** -- pas besoin de `useCallback` pour les wrapper
+- **`useStore.getState()`** pour lire le state hors React (services, callbacks asynchrones)
+
+### Pattern auto-clear messages (store, pas composant)
+```typescript
+// Dans le store -- apres set({ error })
+setTimeout(() => set({ error: null }, false, 'feature/auto/clearError'), 3000);
+
+// Dans le composant -- rien, juste afficher
+{error && <div>{error}</div>}
+```
 
 ### Utilitaires partages
 `src/core/utils/validators.ts` -- Fonctions de validation reutilisables (`isValidEmail`, `isNotEmpty`). Toujours importer depuis ce fichier au lieu de dupliquer dans les UseCases/Services.
@@ -653,7 +844,7 @@ const phone = json.phone || null;
 ### Performance
 - `PaginatedArray<T>` pour les listes volumineuses
 - Invalider les listes (`set items: null`) apres mutations
-- `React.memo` si re-renders inutiles detectes
+- Selectionner individuellement dans les hooks Zustand (voir ci-dessus)
 
 ### Initialisation de l'app
 ```typescript
@@ -671,6 +862,7 @@ initializeApp();
 ### Zustand DevTools
 Les stores utilisent le middleware `devtools` avec des action names explicites :
 `'users/getUsers/pending'`, `'users/getUsers/fulfilled'`, `'users/getUsers/rejected'`
+Auto-clear : `'users/auto/clearError'`, `'users/auto/clearSuccess'`
 
 ### Erreurs courantes
 
@@ -680,6 +872,8 @@ Les stores utilisent le middleware `devtools` avec des action names explicites :
 | Token null / 401 | Session expiree | `useAuth()` + verifier `isAuthenticated` |
 | `Donnees invalides` (Zod) | API renvoie des donnees hors schema | Verifier le schema Zod, inspecter `error.details.zodErrors` |
 | `Either<...> not assignable` | Oubli de consommer l'Either | Utiliser `if (result.isLeft())` |
+| `Property 'as' does not exist on Button` | HeroUI v3 pas de polymorphisme | Utiliser `<a>` natif stylie |
+| `Missing specifier in @heroui/styles` | Mauvais chemin CSS | Utiliser `@heroui/styles/css` |
 
 ---
 
@@ -694,10 +888,11 @@ Les stores utilisent le middleware `devtools` avec des action names explicites :
 - [ ] **DataSource** : `data/datasources/[Feature]DataSource.ts`
 - [ ] **Repository Impl** : `data/repositories/[Feature]Repository.ts`
 - [ ] **Zustand Store** : `presentation/store/[feature]Store.ts`
+- [ ] **Hooks de presentation** : `presentation/hooks/` (filtres, pagination, formulaire si besoin)
 - [ ] **Page/Composant** : `presentation/pages/` ou `presentation/components/`
 
 ---
 
-**Version** : 6.1
-**Derniere mise a jour** : Mai 2026 -- Passage a HeroUI v3, Tailwind CSS v4, Bun, React 19, renommage template generique
+**Version** : 6.3
+**Derniere mise a jour** : Mai 2026 -- Section hooks de presentation (useLoginForm, useRedirectAfterAuth, useUsersFilters, usePagination), refactoring LoginPage + UsersPage
 **Mainteneur** : Contributeurs du template

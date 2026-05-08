@@ -7,9 +7,9 @@ const NotFoundPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center text-center px-4">
-            <h1 className="text-9xl font-bold text-neutral-200">404</h1>
-            <h2 className="text-2xl font-semibold mt-4 mb-2">Page non trouvee</h2>
-            <p className="text-neutral-500 mb-8">
+            <h1 className="text-9xl font-bold text-muted">404</h1>
+            <h2 className="text-2xl font-semibold mt-4 mb-2 text-primary">Page non trouvee</h2>
+            <p className="text-secondary mb-8">
                 La page que vous recherchez n'existe pas ou a ete deplacee.
             </p>
             <Button variant="primary" onPress={() => navigate('/')}>

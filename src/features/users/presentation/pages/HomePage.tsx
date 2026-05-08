@@ -1,8 +1,7 @@
-import React from 'react';
 import { Button, Chip } from '@heroui/react';
 import { useNavigate } from 'react-router-dom';
 
-const HomePage: React.FC = () => {
+const HomePage = () => {
     const navigate = useNavigate();
 
     const features = [
@@ -19,7 +18,7 @@ const HomePage: React.FC = () => {
             <h1 className="text-5xl font-bold mb-4">
                 Clean Architecture React Template
             </h1>
-            <p className="text-xl text-neutral-500 max-w-xl mb-10">
+            <p className="text-xl text-secondary max-w-xl mb-10">
                 Un template complet pour creer des applications React + TypeScript
                 avec une architecture propre et maintenable
             </p>
@@ -28,9 +27,14 @@ const HomePage: React.FC = () => {
                 <Button variant="primary" size="lg" onPress={() => navigate('/users')}>
                     Voir l'exemple (Users)
                 </Button>
-                <Button variant="outline" size="lg" as="a" href="https://github.com" target="_blank">
+                <a
+                    href="https://github.com/gaetan-bloch/template-clean-architecture-react"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center px-6 h-11 rounded-md border border-current text-sm font-medium transition-opacity hover:opacity-80"
+                >
                     Documentation
-                </Button>
+                </a>
             </div>
 
             <div>

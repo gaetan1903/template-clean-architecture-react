@@ -1,4 +1,12 @@
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+
+// Augmentation du type de configuration Axios pour ajouter des champs de debug
+declare module 'axios' {
+    export interface InternalAxiosRequestConfig {
+        requestId?: string;
+        startTime?: number;
+    }
+}
 
 export interface IAxiosService {
     get<T = any>(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<T>>;
@@ -44,33 +52,32 @@ class AxiosService implements IAxiosService {
      * Configuration des intercepteurs de base
      */
     private setupBasicInterceptors(): void {
-        // Intercepteur de requête basique
+        // Intercepteur de requete basique
         this.axiosInstance.interceptors.request.use(
-            (config) => {
-                // Ajout d'un ID de requête pour le debugging  
-                (config as any).requestId = Math.random().toString(36).substr(2, 9);
-                (config as any).startTime = Date.now();
+            (config: InternalAxiosRequestConfig) => {
+                // Ajout d'un ID de requete pour le debugging
+                config.requestId = Math.random().toString(36).slice(2, 11);
+                config.startTime = Date.now();
 
                 return config;
             },
             (error) => {
-                console.error('Erreur dans l\'intercepteur de requête:', error);
+                console.error('Erreur dans l\'intercepteur de requete:', error);
                 return Promise.reject(error);
             }
         );
 
-        // Intercepteur de réponse basique
+        // Intercepteur de reponse basique
         this.axiosInstance.interceptors.response.use(
-            (response) => {
-                return response;
-            },
+            (response) => response,
             (error) => {
                 // Log des erreurs pour debugging
-                const duration = Date.now() - ((error.config as any)?.startTime || 0);
-                console.error(`Erreur requête ${(error.config as any)?.requestId} après ${duration}ms:`, {
+                const config = error.config as InternalAxiosRequestConfig | undefined;
+                const duration = Date.now() - (config?.startTime ?? 0);
+                console.error(`Erreur requete ${config?.requestId} apres ${duration}ms:`, {
                     status: error.response?.status,
                     message: error.response?.data?.message || error.message,
-                    url: error.config?.url
+                    url: config?.url,
                 });
 
                 return Promise.reject(error);

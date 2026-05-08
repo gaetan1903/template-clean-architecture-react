@@ -3,6 +3,9 @@ import { devtools } from 'zustand/middleware';
 import AuthService from '../services/authService';
 import { TokenPayload, LoginCredentials } from '../types/AuthTypes';
 
+// Instanciation unique au niveau module (comme usersStore)
+const authService = AuthService.getInstance();
+
 // Définition du state
 interface AuthState {
     // State
@@ -29,7 +32,6 @@ export const useAuthStore = create<AuthState>()(
             // Login
             login: async (credentials) => {
                 set({ isLoading: true, error: null }, false, 'auth/login/pending');
-                const authService = AuthService.getInstance();
                 const result = await authService.login(credentials);
 
                 if (result.isRight()) {
@@ -60,7 +62,6 @@ export const useAuthStore = create<AuthState>()(
 
             // Logout
             logout: async () => {
-                const authService = AuthService.getInstance();
                 await authService.logout();
                 set({
                     isAuthenticated: false,
@@ -71,7 +72,6 @@ export const useAuthStore = create<AuthState>()(
 
             // Vérifier l'authentification
             checkAuth: () => {
-                const authService = AuthService.getInstance();
                 try {
                     const isAuth = authService.isAuthenticated();
                     if (isAuth) {

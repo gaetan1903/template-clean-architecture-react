@@ -1,43 +1,58 @@
-import React, { useEffect, useState } from 'react';
-import { Button, Card, CardContent, Chip, InputGroup, Pagination, Spinner } from '@heroui/react';
+import { useEffect } from 'react';
+import {
+    Button,
+    Card,
+    CardContent,
+    Chip,
+    InputGroup,
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationNextIcon,
+    PaginationPrevious,
+    PaginationPreviousIcon,
+    Spinner,
+} from '@heroui/react';
 import { useUsersStore } from '../store/usersStore';
+import { useUsersFilters } from '../hooks/useUsersFilters';
+import { usePagination } from '../hooks/usePagination';
 import { getFullName } from '../../domain/entities/UserEntity';
 
-const UsersPage: React.FC = () => {
-    const { users, loading, error, success, getUsers, clearSuccess, clearError } = useUsersStore();
+const UsersPage = () => {
+    const { users, loading, error, success, getUsers } = useUsersStore();
 
-    const [currentPage, setCurrentPage] = useState(1);
-    const [searchTerm, setSearchTerm] = useState('');
+    const {
+        search,
+        setSearch,
+        applyFilters,
+        resetFilters,
+        activeFilters,
+    } = useUsersFilters();
 
-    // Chargement initial
+    const {
+        currentPage,
+        totalPages,
+        goToPage,
+        goToNext,
+        goToPrevious,
+        isFirstPage,
+        isLastPage,
+    } = usePagination(activeFilters);
+
+    // Chargement initial uniquement
     useEffect(() => {
-        getUsers({ page: currentPage, search: searchTerm });
-    }, [currentPage, getUsers]);
+        getUsers({ page: 1 });
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Gestion des messages de succès
-    useEffect(() => {
-        if (success) {
-            setTimeout(() => clearSuccess(), 3000);
-        }
-    }, [success, clearSuccess]);
-
-    // Gestion des erreurs
-    useEffect(() => {
-        if (error) {
-            setTimeout(() => clearError(), 3000);
-        }
-    }, [error, clearError]);
-
-    const handleSearch = () => {
-        setCurrentPage(1);
-        getUsers({ page: 1, search: searchTerm });
-    };
+    const handleSearch = () => applyFilters(1);
 
     return (
         <div className="max-w-6xl mx-auto px-4 py-8">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-1">Gestion des Utilisateurs</h1>
-                <p className="text-neutral-500">Exemple de feature complete avec Clean Architecture</p>
+                <p className="text-secondary">Exemple de feature complete avec Clean Architecture</p>
             </div>
 
             {/* Messages */}
@@ -54,17 +69,22 @@ const UsersPage: React.FC = () => {
 
             {/* Barre de recherche */}
             <div className="flex gap-3 mb-6">
-                <InputGroup variant="bordered" fullWidth>
+                <InputGroup fullWidth>
                     <InputGroup.Input
                         placeholder="Rechercher un utilisateur"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                     />
                 </InputGroup>
                 <Button variant="primary" onPress={handleSearch} isDisabled={loading}>
                     Rechercher
                 </Button>
+                {Object.keys(activeFilters).length > 0 && (
+                    <Button variant="secondary" onPress={resetFilters} isDisabled={loading}>
+                        Reinitialiser
+                    </Button>
+                )}
             </div>
 
             {/* Loading */}
@@ -82,8 +102,8 @@ const UsersPage: React.FC = () => {
                             <Card key={user.id} className="shadow-sm">
                                 <CardContent className="flex flex-col gap-2 pt-4">
                                     <h3 className="font-semibold text-lg">{getFullName(user)}</h3>
-                                    <p className="text-neutral-500 text-sm">{user.email}</p>
-                                    <p className="text-neutral-500 text-sm">
+                                    <p className="text-secondary text-sm">{user.email}</p>
+                                    <p className="text-secondary text-sm">
                                         {user.phone || 'Pas de telephone'}
                                     </p>
                                     <div className="mt-1">
@@ -97,50 +117,54 @@ const UsersPage: React.FC = () => {
                     </div>
 
                     {/* Pagination */}
-                    {users.totalPages > 1 && (
+                    {totalPages > 1 && (
                         <div className="flex justify-center mt-6">
                             <Pagination>
-                                <Pagination.Content>
-                                    <Pagination.Item>
-                                        <Pagination.Previous
-                                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                            aria-disabled={currentPage === 1 || loading}
-                                        />
-                                    </Pagination.Item>
-                                    {Array.from({ length: users.totalPages }, (_, i) => i + 1).map((page) => (
-                                        <Pagination.Item key={page}>
-                                            <Pagination.Link
+                                <PaginationContent>
+                                    <PaginationItem>
+                                        <PaginationPrevious
+                                            onClick={goToPrevious}
+                                            aria-disabled={isFirstPage || loading}
+                                        >
+                                            <PaginationPreviousIcon />
+                                        </PaginationPrevious>
+                                    </PaginationItem>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                        <PaginationItem key={page}>
+                                            <PaginationLink
                                                 isActive={page === currentPage}
-                                                onClick={() => setCurrentPage(page)}
+                                                onClick={() => goToPage(page)}
                                             >
                                                 {page}
-                                            </Pagination.Link>
-                                        </Pagination.Item>
+                                            </PaginationLink>
+                                        </PaginationItem>
                                     ))}
-                                    <Pagination.Item>
-                                        <Pagination.Next
-                                            onClick={() => setCurrentPage((p) => Math.min(users.totalPages, p + 1))}
-                                            aria-disabled={currentPage === users.totalPages || loading}
-                                        />
-                                    </Pagination.Item>
-                                </Pagination.Content>
+                                    <PaginationItem>
+                                        <PaginationNext
+                                            onClick={goToNext}
+                                            aria-disabled={isLastPage || loading}
+                                        >
+                                            <PaginationNextIcon />
+                                        </PaginationNext>
+                                    </PaginationItem>
+                                </PaginationContent>
                             </Pagination>
                         </div>
                     )}
 
                     {/* Informations */}
                     <div className="mt-4 text-center">
-                        <p className="text-sm text-neutral-400">
+                        <p className="text-sm text-muted">
                             {users.totalItems} utilisateur(s) au total
                         </p>
                     </div>
                 </>
             )}
 
-            {/* Aucun résultat */}
+            {/* Aucun resultat */}
             {users && users.data.length === 0 && (
                 <div className="text-center py-12">
-                    <p className="text-neutral-400 text-lg">Aucun utilisateur trouve</p>
+                    <p className="text-muted text-lg">Aucun utilisateur trouve</p>
                 </div>
             )}
         </div>
