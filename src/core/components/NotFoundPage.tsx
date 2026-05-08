@@ -1,37 +1,21 @@
 import React from 'react';
-import { Container, Typography, Button, Box } from '@mui/material';
+import { Button } from '@heroui/react';
 import { useNavigate } from 'react-router-dom';
 
-/**
- * Page 404 — Route non trouvée
- */
 const NotFoundPage: React.FC = () => {
     const navigate = useNavigate();
 
     return (
-        <Container maxWidth="sm">
-            <Box sx={{
-                minHeight: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                textAlign: 'center',
-            }}>
-                <Typography variant="h1" component="h1" sx={{ fontSize: '6rem', fontWeight: 'bold' }}>
-                    404
-                </Typography>
-                <Typography variant="h5" gutterBottom color="text.secondary">
-                    Page non trouvée
-                </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-                    La page que vous recherchez n'existe pas ou a été déplacée.
-                </Typography>
-                <Button variant="contained" onClick={() => navigate('/')}>
-                    Retour à l'accueil
-                </Button>
-            </Box>
-        </Container>
+        <div className="min-h-screen flex flex-col items-center justify-center text-center px-4">
+            <h1 className="text-9xl font-bold text-neutral-200">404</h1>
+            <h2 className="text-2xl font-semibold mt-4 mb-2">Page non trouvee</h2>
+            <p className="text-neutral-500 mb-8">
+                La page que vous recherchez n'existe pas ou a ete deplacee.
+            </p>
+            <Button variant="primary" onPress={() => navigate('/')}>
+                Retour a l'accueil
+            </Button>
+        </div>
     );
 };
 

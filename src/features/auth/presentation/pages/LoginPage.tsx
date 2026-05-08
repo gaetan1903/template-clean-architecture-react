@@ -1,21 +1,8 @@
 import React, { useState } from 'react';
-import {
-    Container,
-    Typography,
-    TextField,
-    Button,
-    Box,
-    Alert,
-    CircularProgress,
-    Paper,
-} from '@mui/material';
+import { Button, Card, CardContent, CardHeader, InputGroup, Spinner } from '@heroui/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../../../core/hooks/useAuth';
 
-/**
- * Page de connexion — template de base.
- * Redirige vers la page d'origine après connexion réussie.
- */
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -49,59 +36,60 @@ const LoginPage: React.FC = () => {
     const displayError = localError || authError;
 
     return (
-        <Container maxWidth="xs">
-            <Box sx={{
-                minHeight: '100vh',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-            }}>
-                <Paper elevation={3} sx={{ p: 4 }}>
-                    <Typography variant="h4" component="h1" gutterBottom textAlign="center">
-                        Connexion
-                    </Typography>
-
+        <div className="min-h-screen flex items-center justify-center bg-neutral-50">
+            <Card className="w-full max-w-sm shadow-lg">
+                <CardHeader className="flex flex-col items-center pt-8 pb-2">
+                    <h1 className="text-2xl font-bold">Connexion</h1>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4 pb-8">
                     {displayError && (
-                        <Alert severity="error" sx={{ mb: 2 }}>
+                        <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-3 text-sm">
                             {displayError}
-                        </Alert>
+                        </div>
                     )}
 
-                    <Box component="form" onSubmit={handleSubmit} noValidate>
-                        <TextField
-                            fullWidth
-                            label="Email"
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            margin="normal"
-                            autoComplete="email"
-                            autoFocus
-                            disabled={isLoading}
-                        />
-                        <TextField
-                            fullWidth
-                            label="Mot de passe"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            margin="normal"
-                            autoComplete="current-password"
-                            disabled={isLoading}
-                        />
+                    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium" htmlFor="email">Email</label>
+                            <InputGroup variant="primary" fullWidth>
+                                <InputGroup.Input
+                                    id="email"
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    autoComplete="email"
+                                    autoFocus
+                                    disabled={isLoading}
+                                />
+                            </InputGroup>
+                        </div>
+
+                        <div className="flex flex-col gap-1">
+                            <label className="text-sm font-medium" htmlFor="password">Mot de passe</label>
+                            <InputGroup variant="primary" fullWidth>
+                                <InputGroup.Input
+                                    id="password"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    autoComplete="current-password"
+                                    disabled={isLoading}
+                                />
+                            </InputGroup>
+                        </div>
+
                         <Button
                             type="submit"
+                            variant="primary"
                             fullWidth
-                            variant="contained"
-                            sx={{ mt: 3, mb: 2 }}
-                            disabled={isLoading}
+                            isDisabled={isLoading}
                         >
-                            {isLoading ? <CircularProgress size={24} /> : 'Se connecter'}
+                            {isLoading ? <Spinner size="sm" /> : 'Se connecter'}
                         </Button>
-                    </Box>
-                </Paper>
-            </Box>
-        </Container>
+                    </form>
+                </CardContent>
+            </Card>
+        </div>
     );
 };
 

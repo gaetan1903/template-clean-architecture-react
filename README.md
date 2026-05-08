@@ -1,48 +1,49 @@
 # Clean Architecture React TypeScript Template
 
-Template React 18 + TypeScript base sur les principes de **Clean Architecture** pour creer des applications robustes, maintenables et scalables.
+Template React 19 + TypeScript base sur les principes de **Clean Architecture** pour creer des applications robustes, maintenables et scalables.
 
 ## Stack technique
 
 | Categorie | Technologie |
 |-----------|-------------|
-| Framework | React 18 + TypeScript |
+| Framework | React 19 + TypeScript 7 |
+| Runtime / Package Manager | **Bun** |
 | Build | Vite 7 |
 | State | Zustand 5 avec middleware `devtools` |
-| UI | Material-UI (MUI) v6 |
+| UI | HeroUI v3 |
 | Routing | React Router DOM v6 |
 | HTTP | Axios (singleton + interceptors auto-token) |
 | Erreurs | `@sweet-monads/either` (Either monad) |
 | Validation | Zod 4 |
-| Styling | SASS/SCSS |
+| Styling | Tailwind CSS v4 (via `@tailwindcss/vite`) |
 
 ## Structure du projet
 
 ```
 src/
-├── core/
-│   ├── services/           # authService, tokenService, axiosService, axiosInterceptor
-│   ├── store/              # Stores Zustand globaux (authStore)
-│   ├── types/              # Types partages (AuthTypes, AppError, PaginatedArray)
-│   ├── hooks/              # Hooks reutilisables (useAuth)
-│   ├── utils/              # Utilitaires partages (validators)
-│   └── components/         # PrivateRoute, ErrorBoundary, NotFoundPage
-│
-└── features/
-    ├── auth/               # Authentification (LoginPage)
-    └── users/              # Feature exemple — 3 couches Clean Architecture
-        ├── data/
-        │   ├── datasources/    # Appels HTTP (Axios, pas de token manuel)
-        │   ├── DTO/            # Mapping API <-> Entity + validation Zod
-        │   └── repositories/   # Implementation des contrats domain -> Either
-        ├── domain/
-        │   ├── entities/       # Interfaces entites metier
-        │   ├── repositories/   # Interfaces (contrats)
-        │   ├── types/          # Types params (filters, create, update)
-        │   └── usecases/       # Logique metier + validation
-        └── presentation/
-            ├── pages/          # Pages React
-            └── store/          # Zustand store de la feature
++-- core/
+|   +-- services/           # authService, tokenService, axiosService, axiosInterceptor
+|   +-- store/              # Stores Zustand globaux (authStore)
+|   +-- types/              # Types partages (AuthTypes, AppError, PaginatedArray)
+|   +-- hooks/              # Hooks reutilisables (useAuth)
+|   +-- utils/              # Utilitaires partages (validators)
+|   +-- components/         # PrivateRoute, ErrorBoundary, NotFoundPage
+|
++-- features/
+    +-- auth/               # Authentification (LoginPage)
+    +-- users/              # Feature exemple -- 3 couches Clean Architecture
+        +-- data/
+        |   +-- datasources/    # Appels HTTP (Axios, pas de token manuel)
+        |   +-- DTO/            # Mapping API <-> Entity + validation Zod
+        |   +-- repositories/   # Implementation des contrats domain -> Either
+        +-- domain/
+        |   +-- entities/       # Interfaces entites metier
+        |   +-- repositories/   # Interfaces (contrats)
+        |   +-- types/          # Types params (filters, create, update)
+        |   +-- usecases/       # Logique metier + validation
+        +-- presentation/
+            +-- pages/          # Pages React
+            +-- store/          # Zustand store de la feature
 ```
 
 ## Demarrage rapide
@@ -52,19 +53,19 @@ src/
 git clone https://github.com/gaetan1903/template-clean-architecture-react.git mon-projet
 cd mon-projet
 
-# Installer
-npm install
+# Installer (Bun requis)
+bun install
 
 # Configurer (copier et adapter)
 cp .env.example .env
 
 # Lancer
-npm run dev
+bun dev
 ```
 
 L'application sera accessible sur `http://localhost:5173`
 
-## Architecture — 3 couches par feature
+## Architecture -- 3 couches par feature
 
 ### Domain Layer
 Logique metier pure, aucune dependance externe. Contient les entites (interfaces), interfaces de repositories, types et use cases.
@@ -102,7 +103,7 @@ const handleLogin = async () => {
 };
 ```
 
-## Gestion d'erreurs — Either monad
+## Gestion d'erreurs -- Either monad
 
 Les erreurs sont gerees avec `@sweet-monads/either` a travers toutes les couches :
 
@@ -113,30 +114,40 @@ Les erreurs sont gerees avec `@sweet-monads/either` a travers toutes les couches
 | UseCase | Validation metier -> `left()`, sinon delegue au repository |
 | Store Zustand | `if (result.isLeft()) set({ error: result.value.message })` |
 
-## Validation des donnees — Zod
+## Validation des donnees -- Zod
 
 Chaque DTO valide les donnees API avec un schema Zod. Les erreurs de validation sont converties en `AppError` avec le code `VALIDATION_ERROR` et les details Zod accessibles via `error.details.zodErrors`.
+
+## UI -- HeroUI v3 + Tailwind CSS v4
+
+Le template utilise **HeroUI v3** comme bibliotheque de composants et **Tailwind CSS v4** pour le styling.
+
+Composants HeroUI utilises : `Button`, `Card`, `CardHeader`, `CardContent`, `InputGroup`, `Chip`, `Pagination`, `Spinner`.
+
+Variantes de Button : `primary`, `secondary`, `outline`, `ghost`, `danger`.
+
+Configuration Tailwind automatique via le plugin Vite `@tailwindcss/vite` -- aucun fichier `tailwind.config.js` requis.
 
 ## Creer une nouvelle feature
 
 Suivez le guide detaille dans [.github/copilot-instructions.md](.github/copilot-instructions.md) qui couvre les 8 etapes :
 
-1. **Entity** — interface + fonctions utilitaires
-2. **DTO** — schema Zod + `fromJson`/`toJson`
-3. **Repository interface** — contrat domain
-4. **DataSource** — appels HTTP
-5. **Repository** — implementation avec `Either`
-6. **UseCase** — logique metier
-7. **Zustand Store** — state management
-8. **Composant React** — UI
+1. **Entity** -- interface + fonctions utilitaires
+2. **DTO** -- schema Zod + `fromJson`/`toJson`
+3. **Repository interface** -- contrat domain
+4. **DataSource** -- appels HTTP
+5. **Repository** -- implementation avec `Either`
+6. **UseCase** -- logique metier
+7. **Zustand Store** -- state management
+8. **Composant React** -- UI
 
 ## Scripts
 
 ```bash
-npm run dev       # Serveur de developpement
-npm run build     # Build de production
-npm run preview   # Preview du build
-npm run lint      # Linting
+bun dev           # Serveur de developpement
+bun run build     # Build de production (tsc + vite)
+bun preview       # Preview du build
+bun lint          # Linting ESLint
 ```
 
 ## Contribution
@@ -149,4 +160,4 @@ npm run lint      # Linting
 
 ## License
 
-MIT — voir [LICENSE](LICENSE)
+MIT -- voir [LICENSE](LICENSE)

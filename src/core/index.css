@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "@heroui/react/styles.css";
+@import "@heroui/styles/dist/index.css";
 
 #root {
   width: 100%;

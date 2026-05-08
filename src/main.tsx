@@ -1,8 +1,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+
 import { initializeApp } from './core/init'
 import AppRoutes from './core/routes'
-import './core/index.scss'
+import './core/index.css'
 
 // Initialiser les services de base (intercepteurs Axios, vérification auth)
 initializeApp();

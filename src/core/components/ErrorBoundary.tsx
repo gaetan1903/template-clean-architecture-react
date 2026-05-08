@@ -1,5 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
-import { Container, Typography, Button, Box, Alert } from '@mui/material';
+import { Button } from '@heroui/react';
 
 interface ErrorBoundaryProps {
     children: ReactNode;
@@ -11,10 +11,6 @@ interface ErrorBoundaryState {
     error: Error | null;
 }
 
-/**
- * ErrorBoundary — Capture les erreurs React runtime et affiche un fallback.
- * Empêche le crash complet de l'application.
- */
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props: ErrorBoundaryProps) {
         super(props);
@@ -40,31 +36,20 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             }
 
             return (
-                <Container maxWidth="sm">
-                    <Box sx={{
-                        minHeight: '100vh',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        textAlign: 'center',
-                    }}>
-                        <Typography variant="h4" gutterBottom>
-                            Une erreur est survenue
-                        </Typography>
-                        <Alert severity="error" sx={{ mb: 3, width: '100%' }}>
-                            {this.state.error?.message || 'Erreur inattendue'}
-                        </Alert>
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                            <Button variant="contained" onClick={this.handleReset}>
-                                Réessayer
-                            </Button>
-                            <Button variant="outlined" onClick={() => window.location.href = '/'}>
-                                Retour à l'accueil
-                            </Button>
-                        </Box>
-                    </Box>
-                </Container>
+                <div className="min-h-screen flex flex-col items-center justify-center text-center px-4">
+                    <h2 className="text-2xl font-bold mb-4">Une erreur est survenue</h2>
+                    <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-3 text-sm mb-6 max-w-md w-full">
+                        {this.state.error?.message || 'Erreur inattendue'}
+                    </div>
+                    <div className="flex gap-3">
+                        <Button variant="primary" onPress={this.handleReset}>
+                            Reessayer
+                        </Button>
+                        <Button variant="outline" onPress={() => { window.location.href = '/'; }}>
+                            Retour a l'accueil
+                        </Button>
+                    </div>
+                </div>
             );
         }
 

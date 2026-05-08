@@ -1,17 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-    Container,
-    Typography,
-    Button,
-    CircularProgress,
-    Alert,
-    Box,
-    Card,
-    CardContent,
-    Grid,
-    TextField,
-    Pagination
-} from '@mui/material';
+import { Button, Card, CardContent, Chip, InputGroup, Pagination, Spinner } from '@heroui/react';
 import { useUsersStore } from '../store/usersStore';
 import { getFullName } from '../../domain/entities/UserEntity';
 
@@ -45,117 +33,119 @@ const UsersPage: React.FC = () => {
         getUsers({ page: 1, search: searchTerm });
     };
 
-    const handlePageChange = (_: React.ChangeEvent<unknown>, page: number) => {
-        setCurrentPage(page);
-    };
-
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-            <Box sx={{ mb: 4 }}>
-                <Typography variant="h3" component="h1" gutterBottom>
-                    Gestion des Utilisateurs
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                    Exemple de feature complète avec Clean Architecture
-                </Typography>
-            </Box>
+        <div className="max-w-6xl mx-auto px-4 py-8">
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold mb-1">Gestion des Utilisateurs</h1>
+                <p className="text-neutral-500">Exemple de feature complete avec Clean Architecture</p>
+            </div>
 
             {/* Messages */}
             {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
+                <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg px-4 py-3 text-sm mb-4">
                     {error}
-                </Alert>
+                </div>
             )}
             {success && (
-                <Alert severity="success" sx={{ mb: 2 }}>
+                <div className="bg-green-50 text-green-700 border border-green-200 rounded-lg px-4 py-3 text-sm mb-4">
                     {success}
-                </Alert>
+                </div>
             )}
 
             {/* Barre de recherche */}
-            <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
-                <TextField
-                    fullWidth
-                    label="Rechercher un utilisateur"
-                    variant="outlined"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                />
-                <Button
-                    variant="contained"
-                    onClick={handleSearch}
-                    disabled={loading}
-                >
+            <div className="flex gap-3 mb-6">
+                <InputGroup variant="bordered" fullWidth>
+                    <InputGroup.Input
+                        placeholder="Rechercher un utilisateur"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    />
+                </InputGroup>
+                <Button variant="primary" onPress={handleSearch} isDisabled={loading}>
                     Rechercher
                 </Button>
-            </Box>
+            </div>
 
             {/* Loading */}
             {loading && !users && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                    <CircularProgress />
-                </Box>
+                <div className="flex justify-center py-12">
+                    <Spinner size="lg" />
+                </div>
             )}
 
             {/* Liste des utilisateurs */}
             {users && (
                 <>
-                    <Grid container spacing={3}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                         {users.data.map((user) => (
-                            <Grid item xs={12} sm={6} md={4} key={user.id}>
-                                <Card>
-                                    <CardContent>
-                                        <Typography variant="h6" gutterBottom>
-                                            {getFullName(user)}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                                            {user.email}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            {user.phone || 'Pas de téléphone'}
-                                        </Typography>
-                                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                                            Rôle: {user.role}
-                                        </Typography>
-                                    </CardContent>
-                                </Card>
-                            </Grid>
+                            <Card key={user.id} className="shadow-sm">
+                                <CardContent className="flex flex-col gap-2 pt-4">
+                                    <h3 className="font-semibold text-lg">{getFullName(user)}</h3>
+                                    <p className="text-neutral-500 text-sm">{user.email}</p>
+                                    <p className="text-neutral-500 text-sm">
+                                        {user.phone || 'Pas de telephone'}
+                                    </p>
+                                    <div className="mt-1">
+                                        <Chip size="sm" variant="secondary">
+                                            {user.role}
+                                        </Chip>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         ))}
-                    </Grid>
+                    </div>
 
                     {/* Pagination */}
                     {users.totalPages > 1 && (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                            <Pagination
-                                count={users.totalPages}
-                                page={currentPage}
-                                onChange={handlePageChange}
-                                color="primary"
-                                disabled={loading}
-                            />
-                        </Box>
+                        <div className="flex justify-center mt-6">
+                            <Pagination>
+                                <Pagination.Content>
+                                    <Pagination.Item>
+                                        <Pagination.Previous
+                                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                            aria-disabled={currentPage === 1 || loading}
+                                        />
+                                    </Pagination.Item>
+                                    {Array.from({ length: users.totalPages }, (_, i) => i + 1).map((page) => (
+                                        <Pagination.Item key={page}>
+                                            <Pagination.Link
+                                                isActive={page === currentPage}
+                                                onClick={() => setCurrentPage(page)}
+                                            >
+                                                {page}
+                                            </Pagination.Link>
+                                        </Pagination.Item>
+                                    ))}
+                                    <Pagination.Item>
+                                        <Pagination.Next
+                                            onClick={() => setCurrentPage((p) => Math.min(users.totalPages, p + 1))}
+                                            aria-disabled={currentPage === users.totalPages || loading}
+                                        />
+                                    </Pagination.Item>
+                                </Pagination.Content>
+                            </Pagination>
+                        </div>
                     )}
 
                     {/* Informations */}
-                    <Box sx={{ mt: 2, textAlign: 'center' }}>
-                        <Typography variant="body2" color="text.secondary">
+                    <div className="mt-4 text-center">
+                        <p className="text-sm text-neutral-400">
                             {users.totalItems} utilisateur(s) au total
-                        </Typography>
-                    </Box>
+                        </p>
+                    </div>
                 </>
             )}
 
             {/* Aucun résultat */}
             {users && users.data.length === 0 && (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="h6" color="text.secondary">
-                        Aucun utilisateur trouvé
-                    </Typography>
-                </Box>
+                <div className="text-center py-12">
+                    <p className="text-neutral-400 text-lg">Aucun utilisateur trouve</p>
+                </div>
             )}
-        </Container>
+        </div>
     );
 };
 
 export default UsersPage;
+

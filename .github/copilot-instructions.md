@@ -1,4 +1,4 @@
-# Instructions Copilot - Tambatra UI
+# Instructions Copilot - Clean Architecture React Template
 
 > **REGLES ABSOLUES :**
 > 1. **JAMAIS** de token en parametre de DataSource/Repository -- l'AxiosInterceptor gere automatiquement le Bearer token
@@ -13,20 +13,20 @@
 
 ## Vue d'ensemble
 
-**Tambatra UI** -- React 18 + TypeScript, Vite, Clean Architecture.
+**Clean Architecture React Template** -- React 19 + TypeScript, Vite, Clean Architecture.
 
 ### Stack technique
 | Categorie | Technologie |
 |-----------|-------------|
-| Framework | React 18 + TypeScript |
+| Framework | React 19 + TypeScript |
 | Build | Vite |
 | State | **Zustand** avec middleware `devtools` |
-| UI | Material-UI (MUI) v6 |
+| UI | **HeroUI v3** |
 | Routing | React Router DOM v6 |
 | HTTP | Axios (singleton + interceptors auto-token) |
 | Erreurs | `@sweet-monads/either` (Either monad) |
 | Validation | Zod |
-| Styling | SASS/SCSS |
+| Styling | **Tailwind CSS v4** (via `@tailwindcss/vite`) |
 
 ### Structure du projet
 ```
@@ -698,6 +698,6 @@ Les stores utilisent le middleware `devtools` avec des action names explicites :
 
 ---
 
-**Version** : 6.0
-**Derniere mise a jour** : Juillet 2025 -- Exemples alignes sur le code reel, suppression redondances, ajout Domain Types + DataSource CRUD complet
-**Mainteneur** : Equipe Tambatra
+**Version** : 6.1
+**Derniere mise a jour** : Mai 2026 -- Passage a HeroUI v3, Tailwind CSS v4, Bun, React 19, renommage template generique
+**Mainteneur** : Contributeurs du template

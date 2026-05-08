@@ -22,7 +22,7 @@ export class UsersUseCase implements IUsersUseCase {
 
     async getUsers(filters: GetUsersFiltersParams): Promise<Either<AppError, PaginatedArray<UserEntity>>> {
         // Logique métier : validation des filtres
-        if (filters.page && filters.page < 1) {
+        if (filters.page !== undefined && filters.page < 1) {
             return left(new AppError("Le numéro de page doit être supérieur à 0", "400", "validation_error"));
         }
 

@@ -1,74 +1,51 @@
 import React from 'react';
-import { Container, Typography, Button, Box } from '@mui/material';
+import { Button, Chip } from '@heroui/react';
 import { useNavigate } from 'react-router-dom';
 
 const HomePage: React.FC = () => {
     const navigate = useNavigate();
 
+    const features = [
+        'React 19 + TypeScript',
+        'Clean Architecture',
+        'Zustand',
+        'HeroUI v3',
+        'Tailwind CSS v4',
+        'Either Monad',
+    ];
+
     return (
-        <Container maxWidth="lg">
-            <Box
-                sx={{
-                    minHeight: '100vh',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    textAlign: 'center',
-                }}
-            >
-                <Typography variant="h2" component="h1" gutterBottom>
-                    Clean Architecture React Template
-                </Typography>
-                <Typography variant="h5" component="h2" gutterBottom sx={{ mt: 2, mb: 4, color: 'text.secondary' }}>
-                    Un template complet pour créer des applications React + TypeScript
-                    <br />
-                    avec une architecture propre et maintenable
-                </Typography>
+        <div className="min-h-screen flex flex-col items-center justify-center text-center px-4">
+            <h1 className="text-5xl font-bold mb-4">
+                Clean Architecture React Template
+            </h1>
+            <p className="text-xl text-neutral-500 max-w-xl mb-10">
+                Un template complet pour creer des applications React + TypeScript
+                avec une architecture propre et maintenable
+            </p>
 
-                <Box sx={{ mt: 4 }}>
-                    <Button
-                        variant="contained"
-                        size="large"
-                        onClick={() => navigate('/users')}
-                        sx={{ mr: 2 }}
-                    >
-                        Voir l'exemple (Users)
-                    </Button>
-                    <Button
-                        variant="outlined"
-                        size="large"
-                        href="https://github.com"
-                        target="_blank"
-                    >
-                        Documentation
-                    </Button>
-                </Box>
+            <div className="flex gap-3 mb-16">
+                <Button variant="primary" size="lg" onPress={() => navigate('/users')}>
+                    Voir l'exemple (Users)
+                </Button>
+                <Button variant="outline" size="lg" as="a" href="https://github.com" target="_blank">
+                    Documentation
+                </Button>
+            </div>
 
-                <Box sx={{ mt: 8 }}>
-                    <Typography variant="h6" gutterBottom>
-                        Caractéristiques principales
-                    </Typography>
-                    <Box sx={{ mt: 2, display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center' }}>
-                        <Box>
-                            <Typography variant="body1">React 18 + TypeScript</Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="body1">Clean Architecture</Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="body1">Zustand</Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="body1">Material-UI v6</Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="body1">Either Monad</Typography>
-                        </Box>
-                    </Box>
-                </Box>
-            </Box>
-        </Container>
+            <div>
+                <h2 className="text-lg font-semibold mb-4">
+                    Caracteristiques principales
+                </h2>
+                <div className="flex flex-wrap gap-2 justify-center">
+                    {features.map((feature) => (
+                        <Chip key={feature} variant="secondary">
+                            {feature}
+                        </Chip>
+                    ))}
+                </div>
+            </div>
+        </div>
     );
 };
 
